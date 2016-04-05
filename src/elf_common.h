@@ -43,12 +43,47 @@ static inline ElfW(Word) elf_r_type(ElfW(Word) info) { return ELF32_R_TYPE(info)
 #endif
 
 #if defined(__arm__)
+
+#if !defined(R_ARM_ABS32)
+#define R_ARM_ABS32                 2
+#endif
+#if !defined(R_ARM_GLOB_DAT)
+#define R_ARM_GLOB_DAT              21
+#endif
+#if !defined(R_ARM_JUMP_SLOT)
+#define R_ARM_JUMP_SLOT             22
+#endif
+#if !defined(R_ARM_RELATIVE)
+#define R_ARM_RELATIVE              23
+#endif
+#if !defined(R_ARM_IRELATIVE)
+#define R_ARM_IRELATIVE             160
+#endif
+
 #define R_GENERIC_JUMP_SLOT R_ARM_JUMP_SLOT
 #define R_GENERIC_GLOB_DAT  R_ARM_GLOB_DAT
 #define R_GENERIC_RELATIVE  R_ARM_RELATIVE
 #define R_GENERIC_IRELATIVE R_ARM_IRELATIVE
 #define R_GENERIC_ABS       R_ARM_ABS32
+
 #elif defined(__aarch64__)
+
+#if !defined(R_AARCH64_ABS64)
+#define R_AARCH64_ABS64                 257
+#endif
+#if !defined(R_AARCH64_GLOB_DAT)
+#define R_AARCH64_GLOB_DAT              1025
+#endif
+#if !defined(R_AARCH64_JUMP_SLOT)
+#define R_AARCH64_JUMP_SLOT             1026
+#endif
+#if !defined(R_AARCH64_RELATIVE)
+#define R_AARCH64_RELATIVE              1027
+#endif
+#if !defined(R_AARCH64_IRELATIVE)
+#define R_AARCH64_IRELATIVE             1032
+#endif
+
 #define R_GENERIC_JUMP_SLOT R_AARCH64_JUMP_SLOT
 #define R_GENERIC_GLOB_DAT  R_AARCH64_GLOB_DAT
 #define R_GENERIC_RELATIVE  R_AARCH64_RELATIVE
