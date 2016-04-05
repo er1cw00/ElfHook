@@ -16,6 +16,7 @@ public:
 
     bool phrase_proc_maps();
     void dump_module_list();
+    elf_module* create_module(const char* soname);
 
 //    void* caculate_base_addr_from_soinfo_pointer(void* soinfo_addr);
     /* *
@@ -35,7 +36,9 @@ protected:
 
     bool phrase_proc_base_addr(char* addr, void** pbase_addr, void** pend_addr);
     bool phrase_dev_num(char* devno, int *pmajor, int *pminor);
-
+    bool phrase_proc_maps_line(char* line, char** paddr, char** pflags, char** pdev, char** pfilename);
+    bool check_flags_and_devno(char* flags, char* dev);
+    
 protected:
 
     std::map<std::string, elf_module> m_modules;

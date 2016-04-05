@@ -90,7 +90,7 @@ static void __elfhooker_deinit(void);
 static JNINativeMethod __methods[] =
 {
     {"setHook","()I",(void *)__set_hook },
-//    {"test","()I",(void *)__test },
+    {"test","()I",(void *)__test },
 };
 
 static int __set_hook(JNIEnv *env, jobject thiz)
@@ -99,9 +99,19 @@ static int __set_hook(JNIEnv *env, jobject thiz)
 //    __hooker.set_prehook_cb(__prehook);
     __hooker.phrase_proc_maps();
     __hooker.dump_module_list();
-    __hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
-    __hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
-    __hooker.hook_all_modules("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
+//    __hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
+//    __hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
+//    __hooker.hook_all_modules("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
+
+    elf_module* module = __hooker.create_module("libart.so");
+    log_info("module base:%lx, %lx, %s\n",
+            (unsigned long)module->get_base_addr(),
+            (unsigned long)module->get_bias_addr(),
+            module->get_module_name());
+
+    module->hook("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
+    module->hook("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
+    module->hook("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
 
 #if 0
     void* h = dlopen("libart.so", RTLD_LAZY);
@@ -118,7 +128,7 @@ static int __set_hook(JNIEnv *env, jobject thiz)
 static int __test(JNIEnv *env, jobject thiz)
 {
     log_info("__test() -->\r\n");
-//    __hooker.dump_proc_maps();
+    __hooker.dump_proc_maps();
     return 0;
 }
 

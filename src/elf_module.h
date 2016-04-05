@@ -17,10 +17,6 @@ public:
     inline const char* get_module_name() { return this->m_module_name.c_str(); }
     inline ElfW(Addr) get_base_addr() { return this->m_base_addr; }
     inline ElfW(Addr) get_bias_addr() { return this->m_bias_addr; }
-    inline bool get_is_gnu_hash() { return this->m_is_gnu_hash; }
-    inline void set_is_gnu_has(bool flag) { this->m_is_gnu_hash = flag; }
-    inline bool get_is_use_rela() { return this->m_is_use_rela; }
-    inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 
     bool hook(const char *symbol, void *replace_func, void **old_func);
 
@@ -33,6 +29,11 @@ public:
     void dump_rel_info();
     void dump_rela_info();
 
+protected:
+    inline bool get_is_gnu_hash() { return this->m_is_gnu_hash; }
+    inline void set_is_gnu_has(bool flag) { this->m_is_gnu_hash = flag; }
+    inline bool get_is_use_rela() { return this->m_is_use_rela; }
+    inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 protected:
 
     ElfW(Addr) caculate_bias_addr(const ElfW(Ehdr)* elf);

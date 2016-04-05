@@ -362,17 +362,12 @@ bool elf_module::gnu_lookup(char const* symbol, ElfW(Sym) **sym, int *symidx)
                 this->get_module_name(),
                 reinterpret_cast<void*>(this->get_base_addr()));
 
-    // log_dbg("word_num(%d), bloom_word(%x), hash(%08x), h2(%x), bloom_mask_bits(%x)\n", word_num, bloom_word, hash, h2, bloom_mask_bits);
-    // log_dbg("%x; %x, %x, %x\n",  (hash % bloom_mask_bits) ,
-    //                     (bloom_word >> (hash % bloom_mask_bits)),
-    //                     (h2 % bloom_mask_bits),
-    //                     (bloom_word >> (h2 % bloom_mask_bits)));
     // test against bloom filter
     if ((1 & (bloom_word >> (hash % bloom_mask_bits)) & (bloom_word >> (h2 % bloom_mask_bits))) == 0) {
-        log_dbg("[-] NOT Found %s in %s@%p 1\n",
-                    symbol,
-                    this->get_module_name(),
-                    reinterpret_cast<void*>(this->get_base_addr()));
+        // log_dbg("[-] NOT Found %s in %s@%p 1\n",
+        //             symbol,
+        //             this->get_module_name(),
+        //             reinterpret_cast<void*>(this->get_base_addr()));
 
         return false;
     }
@@ -381,10 +376,10 @@ bool elf_module::gnu_lookup(char const* symbol, ElfW(Sym) **sym, int *symidx)
     uint32_t n = this->m_gnu_bucket[hash % this->m_gnu_nbucket];
 
     if (n == 0) {
-        log_dbg("[-] NOT Found %s in %s@%p 2\n",
-            symbol,
-            this->get_module_name(),
-            reinterpret_cast<void*>(this->get_base_addr()));
+        // log_dbg("[-] NOT Found %s in %s@%p 2\n",
+        //     symbol,
+        //     this->get_module_name(),
+        //     reinterpret_cast<void*>(this->get_base_addr()));
 
         return false;
     }
@@ -402,13 +397,12 @@ bool elf_module::gnu_lookup(char const* symbol, ElfW(Sym) **sym, int *symidx)
             *sym = s;
             return true;
         }
-        log_dbg("test : %s\n", (this->m_symstr_ptr + s->st_name));
     } while ((this->m_gnu_chain[n++] & 1) == 0);
 
-    log_warn("[-] NOT Found %s in %s@%p 3\n",
-              symbol,
-              this->get_module_name(),
-              reinterpret_cast<void*>(this->get_base_addr()));
+    // log_warn("[-] NOT Found %s in %s@%p 3\n",
+    //           symbol,
+    //           this->get_module_name(),
+    //           reinterpret_cast<void*>(this->get_base_addr()));
 
     return false;
 }
@@ -437,6 +431,12 @@ bool elf_module::find_symbol_by_name(const char *symbol, ElfW(Sym) **sym, int *s
                                     static_cast<size_t>((*sym)->st_size));
                 }
             }
+        }
+        if (!result) {
+            log_dbg("[-] NOT Found %s in %s@%p\n",
+                symbol,
+                this->get_module_name(),
+                reinterpret_cast<void*>(this->get_base_addr()));
         }
         return result;
     }
@@ -576,7 +576,7 @@ bool elf_module::replace_function(void* addr, void *replace_func, void **old_fun
     uint32_t prots = old_prots;
     if(*(void **)addr == replace_func)
     {
-        log_warn("addr %p had been replace.\n", addr);
+        log_warn("[-] addr %p had been replace.\n", addr);
         goto fail;
     }
 
