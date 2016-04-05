@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             System.out.printf("Hook 按钮\n");
             mElfHooker = new ElfHooker();
             mElfHooker.setHook();
-            mElfHooker.test();
+//            mElfHooker.test();
         }
     }
 }
