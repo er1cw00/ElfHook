@@ -42,7 +42,7 @@ ref:
 
 > ndk-build NDK_PROJECT_PATH=. NDK_OUT=./objs NDK_LIBS_OUT=./bin APP_BUILD_SCRIPT=./Android.mk APP_PLATFORM=android-23 APP_ABI=arm64-v8a,armeabi-v7a APP_STL=stlport_static
 
-** use NDK 11r **
+**use NDK r11b**
 
 ## 0x03 How To Use
 
