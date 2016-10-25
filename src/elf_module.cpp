@@ -188,7 +188,7 @@ bool elf_module::get_segment_view(void)
                 this->m_bucket  = rawdata + 2;
                 this->m_chain   = this->m_bucket + this->m_nbucket;
                 this->m_sym_size   = this->m_nchain;
-                log_info("nbucket: %d, nchain: %d, bucket: %p, chain:%p\n", this->m_nbucket, this->m_nchain, this->m_bucket, this->m_chain);
+                log_dbg("nbucket: %d, nchain: %d, bucket: %p, chain:%p\n", this->m_nbucket, this->m_nchain, this->m_bucket, this->m_chain);
                 break;
             }
         case DT_GNU_HASH:

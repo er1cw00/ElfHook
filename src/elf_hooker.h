@@ -18,7 +18,8 @@ public:
     void dump_module_list();
     elf_module* create_module(const char* soname);
 
-//    void* caculate_base_addr_from_soinfo_pointer(void* soinfo_addr);
+    void* lookup_loaded_dylib(const char* soname);
+    void* base_addr_from_soinfo(void* soinfo_addr);
     /* *
         prehook_cb invoked before really hook,
         if prehook_cb NOT set or return true, this module will be hooked,
@@ -32,6 +33,7 @@ public:
 
     void hook_all_modules(const char* func_name, void* pfn_new, void** ppfn_old);
     void dump_proc_maps();
+
 protected:
 
     bool phrase_proc_base_addr(char* addr, void** pbase_addr, void** pend_addr);
@@ -41,8 +43,32 @@ protected:
     
 protected:
 
+    void * m_soinfo_list;
     std::map<std::string, elf_module> m_modules;
     bool (*m_prehook_cb)(const char* module_name, const char* func_name);
+};
+
+#define SOINFO_NAME_LEN (128)
+
+struct soinfo_header {
+    char old_name[SOINFO_NAME_LEN];
+    const ElfW(Phdr)* phdr;
+    size_t phnum;
+    ElfW(Addr) unused0;
+    ElfW(Addr) base;
+    size_t size;
+    uint32_t unused1;   // DO NOT USE, maintained for compatibility.
+    ElfW(Dyn)* dynamic;
+    uint32_t unused2;   // DO NOT USE, maintained for compatibility
+    uint32_t unused3;   // DO NOT USE, maintained for compatibility
+    soinfo* next;
+    uint32_t flags_;
+    const char* strtab_;
+    ElfW(Sym)* symtab_;
+    size_t nbucket_;
+    size_t nchain_;
+    uint32_t* bucket_;
+    uint32_t* chain_;
 };
 
 #endif

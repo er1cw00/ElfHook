@@ -169,76 +169,6 @@ elf_module* elf_hooker::create_module(const char* soname)
     return NULL;
 }
 
-#if 0
-bool elf_hooker::phrase_proc_maps()
-{
-    m_modules.clear();
-    FILE* fd = fopen("/proc/self/maps", "r");
-    if (fd != NULL)
-    {
-        char buff[2048+1];
-        while(fgets(buff, 2048, fd) != NULL)
-        {
-            const char *sep = "\t \r\n";
-            char *line = NULL;
-            char* addr = strtok_r(buff, sep, &line);
-            if (!addr) {
-                continue;
-            }
-
-            char *flags = strtok_r(NULL, sep, &line);
-            if (!flags || flags[0] != 'r' || flags[3] == 's') {
-                /*
-                    1. mem section cound NOT be read, without 'r' flag.
-                    2. read from base addr of /dev/mail module would crash.
-                       i dont know how to handle it, just skip it.
-
-                       1f5573000-1f58f7000 rw-s 1f5573000 00:0c 6287 /dev/mali0
-
-                */
-                continue;
-            }
-            strtok_r(NULL, sep, &line);  // offsets
-            char *dev = strtok_r(NULL, sep, &line);  // dev number.
-            int major = 0, minor = 0;
-            if (!phrase_dev_num(dev, &major, &minor) || major == 0) {
-                /*
-                    if dev major number equal to 0, mean the module must NOT be
-                    a shared or executable object loaded from disk.
-                    e.g:
-                    lookup symbol from [vdso] would crash.
-                    7f7b48a000-7f7b48c000 r-xp 00000000 00:00 0  [vdso]
-                */
-                continue;
-            }
-
-            strtok_r(NULL, sep, &line);  // node
-
-            char* filename = strtok_r(NULL, sep, &line); //module name
-            if (!filename) {
-                continue;
-            }
-            std::string module_name = filename;
-            std::map<std::string, elf_module>::iterator itor = m_modules.find(module_name);
-            if (itor == m_modules.end())
-            {
-                void* base_addr = NULL;
-                void* end_addr = NULL;
-                if (phrase_proc_base_addr(addr, &base_addr, &end_addr) && elf_module::is_elf_module(base_addr))
-                {
-                    elf_module module(reinterpret_cast<ElfW(Addr)>
-                    (base_addr), module_name.c_str());
-                    m_modules.insert(std::pair<std::string, elf_module>(module_name, module));
-                }
-            }
-        }
-        fclose(fd);
-        return true;
-    }
-    return false;
-
-}
-#endif
 void elf_hooker::dump_module_list()
 {
     for (std::map<std::string, elf_module>::iterator itor = m_modules.begin();
@@ -259,7 +189,7 @@ void elf_hooker::hook_all_modules(const char* func_name, void* pfn_new, void** p
         {
             continue;
         }
-        log_info("Hook Module : %s\n", itor->second.get_module_name());
+        log_info("Hook Module : %s, Function: %s\n", itor->second.get_module_name(), func_name);
         this->hook(&itor->second, func_name, pfn_new, ppfn_old);
     }
     return;
@@ -279,10 +209,29 @@ void elf_hooker::dump_proc_maps()
     }
     return;
 }
-// void* elf_hooker::caculate_base_addr_from_soinfo_pointer(void* soinfo_addr)
-// {
-//     uint32_t
-//     if (soinfo_addr == NULL) {
-//         return NULL;
-//     }
-// }
+
+void* elf_hooker::base_addr_from_soinfo(void* soinfo_addr)
+{
+    struct soinfo_header * soinfo = reinterpret_cast<struct soinfo_header *>(soinfo_addr);
+    if (soinfo != NULL && soinfo->next != NULL) {
+        return soinfo->next;
+    }
+    return NULL;
+}
+
+void* elf_hooker::lookup_loaded_dylib(const char* soname) {
+    if (m_soinfo_list == NULL) {
+        m_soinfo_list = dlopen("libdl.so", RTLD_GLOBAL);
+        log_error("m_soinfo_list : %p\n",m_soinfo_list);
+    }
+    if (m_soinfo_list) {
+        struct soinfo_header * soinfo = reinterpret_cast<struct soinfo_header *>(m_soinfo_list);
+        while(soinfo) {
+            if (strstr((char*)soinfo->old_name, soname)) {
+                return reinterpret_cast<void *>(soinfo);
+            }
+            soinfo = reinterpret_cast<struct soinfo_header *>(soinfo->next);
+        }
+    }
+    return NULL;
+}
