@@ -6,7 +6,8 @@ BIN_DIR = ./bin
 
 
 JNIFLAGS     = APP_BUILD_SCRIPT=./Android.mk
-JNIFLAGS     += APP_ABI=arm64-v8a,armeabi-v7a
+JNIFLAGS     += APP_ABI=arm64-v8a
+JNIFLAGS     += APP_ABI=armeabi-v7a
 JNIFLAGS     += APP_PLATFORM=android-23
 JNIFLAGS     += APP_STL=stlport_static
 
