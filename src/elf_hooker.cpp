@@ -44,11 +44,15 @@ bool elf_hooker::phrase_dev_num(char* devno, int *pmajor, int *pminor)
 {
     *pmajor = 0;
     *pminor = 0;
-    if (devno != NULL && strlen(devno) == 5 && devno[2] == ':')
+    if (devno != NULL)
     {
-        *pmajor = strtoul(devno + 0, NULL, 16);
-        *pminor = strtoul(devno + 3, NULL, 16);
-        return true;
+        char* colon_pos = strchr(devno, ':');
+        if (colon_pos != NULL)
+        {
+            *pmajor = strtoul(devno, NULL, 16);
+            *pminor = strtoul(colon_pos + 1, NULL, 16);
+            return true;
+        }
     }
     return false;
 }
