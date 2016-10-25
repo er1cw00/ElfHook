@@ -18,6 +18,7 @@ public:
     void dump_module_list();
     elf_module* create_module(const char* soname);
 
+    static uint32_t get_sdk_version();
     void* lookup_loaded_dylib(const char* soname);
     void* base_addr_from_soinfo(void* soinfo_addr);
     /* *
@@ -51,24 +52,24 @@ protected:
 #define SOINFO_NAME_LEN (128)
 
 struct soinfo_header {
-    char old_name[SOINFO_NAME_LEN];
-    const ElfW(Phdr)* phdr;
-    size_t phnum;
-    ElfW(Addr) unused0;
-    ElfW(Addr) base;
-    size_t size;
-    uint32_t unused1;   // DO NOT USE, maintained for compatibility.
-    ElfW(Dyn)* dynamic;
-    uint32_t unused2;   // DO NOT USE, maintained for compatibility
-    uint32_t unused3;   // DO NOT USE, maintained for compatibility
-    soinfo* next;
-    uint32_t flags_;
-    const char* strtab_;
-    ElfW(Sym)* symtab_;
-    size_t nbucket_;
-    size_t nchain_;
-    uint32_t* bucket_;
-    uint32_t* chain_;
+    char                    old_name[SOINFO_NAME_LEN];
+    const ElfW(Phdr)        *phdr;
+    size_t                  phnum;
+    ElfW(Addr)              unused0;
+    ElfW(Addr)              base;
+    size_t                  size;
+    uint32_t                unused1;   // DO NOT USE, maintained for compatibility.
+    ElfW(Dyn)               *dynamic;
+    uint32_t                unused2;   // DO NOT USE, maintained for compatibility
+    uint32_t                unused3;   // DO NOT USE, maintained for compatibility
+    struct soinfo_header    *next;
+    uint32_t                flags;
+    const char              *strtab;
+    ElfW(Sym)               *symtab;
+    size_t                  nbucket;
+    size_t                  nchain;
+    uint32_t                *bucket;
+    uint32_t                *chain;
 };
 
 #endif

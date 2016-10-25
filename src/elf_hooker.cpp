@@ -1,8 +1,10 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <dlfcn.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/system_properties.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -208,6 +210,14 @@ void elf_hooker::dump_proc_maps()
         fclose(fd);
     }
     return;
+}
+
+uint32_t elf_hooker::get_sdk_version() 
+{
+    char sdk[32] = {0};
+    __system_property_get("ro.build.version.sdk", sdk);
+    log_dbg("get_sdk_version() -> sdk version: %s\n", sdk);
+    return atoi(sdk);
 }
 
 void* elf_hooker::base_addr_from_soinfo(void* soinfo_addr)
