@@ -1,6 +1,6 @@
 ## 0x01 Brief About ElfHook
 
-&emsp;&emsp;ElFKooH is the same as ElfHooK, came from boyliang's AllHookInOne, fix some bug, dealing with new problem in aarch64.
+&emsp;&emsp;ElfHooK, came from boyliang's AllHookInOne, fix some bug, dealing with new problem in aarch64.
 
 - **NOT** DT_HAST in .dynmaic section，but .gun.hash instead.
 
