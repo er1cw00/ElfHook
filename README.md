@@ -58,7 +58,7 @@ print all elf moudle's info, base addr and full path.
 
 - void elf_hooker::set_prehook_cb( prehook_cb ):
 
-set a callback function, which would be invoked before hooked. if it return false,  prehook_cb function like  this:
+set a callback function, which would be invoked before hooked. The function with func_name will not be hooked, if it return false.  prehook_cb function like  this:
 
 > bool prehook_cb(const char* module_name, const char* func_name);
 
