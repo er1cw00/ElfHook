@@ -14,7 +14,7 @@ public:
     ~elf_hooker();
 
 
-    bool phrase_proc_maps();
+    void phrase_proc_maps();
     void dump_module_list();
     elf_module* create_module(const char* soname);
 

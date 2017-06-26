@@ -100,8 +100,9 @@ bool elf_hooker::check_flags_and_devno(char* flags, char* dev)
     return true;
 }
 
-bool elf_hooker::phrase_proc_maps()
+void elf_hooker::phrase_proc_maps()
 {
+
     FILE* fd = fopen("/proc/self/maps", "r");
     if (fd != NULL)
     {
@@ -200,7 +201,7 @@ void elf_hooker::hook_all_modules(const char* func_name, void* pfn_new, void** p
 void elf_hooker::dump_proc_maps()
 {
     FILE* fd = fopen("/proc/self/maps", "r");
-    if (fd > 0)
+    if (fd != NULL)
     {
         char buff[2048+1];
         while(fgets(buff, 2048, fd) != NULL)
