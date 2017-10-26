@@ -10,7 +10,8 @@ LOCAL_SRC_FILES := \
                 src/elf_hooker.cc \
                 src/elf_module.cc \
                 src/elf_file.cc \
-                src/elf_mapped.cc 
+                src/elf_mapped.cc \
+				src/main.cc
 
 LOCAL_C_INCLUDES :=
 
@@ -33,7 +34,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := ElfHook
 LOCAL_LDLIBS := -llog
 LOCAL_SRC_FILES := \
-                src/main.cpp
+                src/main.cc
 
 LOCAL_C_INCLUDES :=
 
@@ -55,7 +56,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := ElfHook.out
 LOCAL_LDLIBS := -llog
 LOCAL_SRC_FILES := \
-                src/main.cpp
+                src/main.cc
 
 LOCAL_C_INCLUDES :=
 

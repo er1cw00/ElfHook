@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, "old dlopen: %p\n", __old_impl_dlopen);
     fprintf(stderr, "old connect: %p\n", __old_impl_connect);
 
-    uintptr_t origin_dlopen = NULL;
+    uintptr_t origin_dlopen = static_cast<uintptr_t>(NULL);
     hooker.find_function_addr("/system/lib/libdl.so", "dlopen", origin_dlopen);
     fprintf(stderr ,"origin_dlopen: %p\n", (void*)origin_dlopen);
     

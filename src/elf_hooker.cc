@@ -276,8 +276,7 @@ void elf_hooker::load_soinfo_handle_map(uintptr_t bias_addr) {
     }
     log_dbg("soinfo_handler_map_offset:(%p), soinfo_handler_map_size(%d)\n", (void *)soinfo_handles_map_offset, soinfo_handles_map_size);
     if (soinfo_handles_map_offset) {
-        this->m_soinfo_handles_map = reinterpret_cast<void *>(bias_addr + soinfo_handles
-            _map_offset);
+        this->m_soinfo_handles_map = reinterpret_cast<void *>(bias_addr + soinfo_handles_map_offset);
     }
 
     uintptr_t soinfo_map_find_offset = static_cast<uintptr_t>(NULL);

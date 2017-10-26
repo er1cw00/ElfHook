@@ -1,3 +1,4 @@
-bin/*
-objs/*
+objs
+libs
+bin
 *.so
