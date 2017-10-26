@@ -7,14 +7,16 @@
 #include <stdlib.h>
 #include <android/log.h>
 
-#if (ELFHOOK_STANDALONE)
+#define ELFHOOK_DEBUG (1)
+
+#if (ELFHOOK_DEBUG)
 
 #define log_info(...)   do{ fprintf(stdout, __VA_ARGS__); } while(0)
 #define log_error(...)  do{ fprintf(stdout, __VA_ARGS__); } while(0)
 #define log_warn(...)   do{ fprintf(stdout, __VA_ARGS__); } while(0)
 #define log_fatal(...)  do{ fprintf(stdout, __VA_ARGS__); } while(0)
 
-#if 1
+#if 0
 #define log_dbg(...)    do{ } while(0)
 #else
 #define log_dbg(...)    do{ fprintf(stdout, __VA_ARGS__); } while(0)
@@ -91,7 +93,21 @@ static inline ElfW(Word) elf_r_type(ElfW(Word) info) { return ELF32_R_TYPE(info)
 #define R_GENERIC_ABS       R_AARCH64_ABS64
 #endif
 
+#define DT_GNU_HASH      ((int)0x6ffffef5)
+#define DT_ANDROID_REL   ((int)0x6000000f)
+#define DT_ANDROID_RELSZ ((int)0x60000010)
 
+
+#define PAGE_START(addr) (~(getpagesize() - 1) & (addr))
+#define PAGE_END(addr)   PAGE_START((addr) + (PAGE_SIZE-1))
+#define PAGE_OFFSET(x)      ((x) & ~PAGE_MASK)
+
+#define SAFE_SET_VALUE(t, v) if(t) *(t) = (v)
+
+#define MAYBE_MAP_FLAG(x, from, to)  (((x) & (from)) ? (to) : 0)
+#define PFLAGS_TO_PROT(x)            (MAYBE_MAP_FLAG((x), PF_X, PROT_EXEC) | \
+                                      MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
+                                      MAYBE_MAP_FLAG((x), PF_W, PROT_WRITE))
 
 
 #define powerof2(x)     ((((x)-1)&(x))==0)
@@ -111,5 +127,18 @@ inline static int GetTargetElfMachine()
     return EM_X86_64;
 #endif
 }
+
+#define CHECK(predicate) \
+    do { \
+        if (!(predicate)) { \
+            log_fatal("%s:%d: %s CHECK '" #predicate "' failed", \
+                  __FILE__, __LINE__, __FUNCTION__); \
+        } \
+    } while(0)
+
+
+
+void dump_hex(uint8_t * pbuf, int size);
+bool safe_add(off64_t* out, off64_t a, size_t b);
 
 #endif

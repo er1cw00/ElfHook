@@ -9,6 +9,7 @@
 class elf_module {
 
 public:
+    elf_module() {elf_module(0, "");}
     elf_module(ElfW(Addr) base_addr, const char* module_name);
     ~elf_module();
 
@@ -17,8 +18,13 @@ public:
     inline const char* get_module_name() { return this->m_module_name.c_str(); }
     inline ElfW(Addr) get_base_addr() { return this->m_base_addr; }
     inline ElfW(Addr) get_bias_addr() { return this->m_bias_addr; }
+    inline bool get_is_gnu_hash() { return this->m_is_gnu_hash; }
+    inline void set_is_gnu_has(bool flag) { this->m_is_gnu_hash = flag; }
+    inline bool get_is_use_rela() { return this->m_is_use_rela; }
+    inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 
     bool hook(const char *symbol, void *replace_func, void **old_func);
+    bool load(void) {return this->get_segment_view();}
 
     void dump_elf_header(void);
     void dump_sections();
@@ -29,11 +35,6 @@ public:
     void dump_rel_info();
     void dump_rela_info();
 
-protected:
-    inline bool get_is_gnu_hash() { return this->m_is_gnu_hash; }
-    inline void set_is_gnu_has(bool flag) { this->m_is_gnu_hash = flag; }
-    inline bool get_is_use_rela() { return this->m_is_use_rela; }
-    inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 protected:
 
     ElfW(Addr) caculate_bias_addr(const ElfW(Ehdr)* elf);

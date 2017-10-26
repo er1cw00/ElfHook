@@ -7,15 +7,22 @@
 
 #include "elf_module.h"
 
+typedef void * (*fn_soinfo_map_find)(void * map, uintptr_t * handle);
+typedef void * (*fn_dlopen_ext)(const char * soname, int flags, void * extinfo, void * caller_addr);
+
 class elf_hooker {
 
 public:
     elf_hooker();
     ~elf_hooker();
 
-
-    void phrase_proc_maps();
+    bool load();
+    
     void dump_module_list();
+    bool get_module_by_name(const char * filename, elf_module & module);
+    void * get_dlopen_ext_function() {return reinterpret_cast<void *>(m_origin_dlopen_ext);}
+
+
     elf_module* create_module(const char* soname);
 
     static uint32_t get_sdk_version();
@@ -35,7 +42,12 @@ public:
     void hook_all_modules(const char* func_name, void* pfn_new, void** ppfn_old);
     void dump_proc_maps();
 
+    bool find_function_addr(const char * module_name, const char * sym_name, uintptr_t & func_addr);
 protected:
+
+    void phrase_proc_maps();
+    bool load_soinfo_list();
+    void load_soinfo_handle_map(uintptr_t bias_addr);
 
     bool phrase_proc_base_addr(char* addr, void** pbase_addr, void** pend_addr);
     bool phrase_dev_num(char* devno, int *pmajor, int *pminor);
@@ -43,33 +55,15 @@ protected:
     bool check_flags_and_devno(char* flags, char* dev);
     
 protected:
+     
+    fn_dlopen_ext           m_origin_dlopen_ext;
+    fn_soinfo_map_find      m_origin_soinfo_map_find;
+    void                    *m_soinfo_handles_map;
+    void                    *m_soinfo_list;
 
-    void * m_soinfo_list;
+
     std::map<std::string, elf_module> m_modules;
     bool (*m_prehook_cb)(const char* module_name, const char* func_name);
-};
-
-#define SOINFO_NAME_LEN (128)
-
-struct soinfo_header {
-    char                    old_name[SOINFO_NAME_LEN];
-    const ElfW(Phdr)        *phdr;
-    size_t                  phnum;
-    ElfW(Addr)              unused0;
-    ElfW(Addr)              base;
-    size_t                  size;
-    uint32_t                unused1;   // DO NOT USE, maintained for compatibility.
-    ElfW(Dyn)               *dynamic;
-    uint32_t                unused2;   // DO NOT USE, maintained for compatibility
-    uint32_t                unused3;   // DO NOT USE, maintained for compatibility
-    struct soinfo_header    *next;
-    uint32_t                flags;
-    const char              *strtab;
-    ElfW(Sym)               *symtab;
-    size_t                  nbucket;
-    size_t                  nchain;
-    uint32_t                *bucket;
-    uint32_t                *chain;
 };
 
 #endif
