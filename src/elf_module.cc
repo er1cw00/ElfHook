@@ -55,6 +55,9 @@ elf_module::~elf_module()
 bool elf_module::is_elf_module(void* base_addr)
 {
     ElfW(Ehdr) *ehdr = reinterpret_cast<ElfW(Ehdr) *>(base_addr);
+    if (!ehdr) {
+        return false;
+    }
     if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
         return false;
     }

@@ -15,6 +15,8 @@ public:
 
     static bool is_elf_module(void* base_addr);
 
+    inline void set_base_addr(ElfW(Addr) base_addr){ this->m_base_addr = base_addr;}
+    inline void set_module_name(const char * soname) {this->m_module_name = soname;}
     inline const char* get_module_name() { return this->m_module_name.c_str(); }
     inline ElfW(Addr) get_base_addr() { return this->m_base_addr; }
     inline ElfW(Addr) get_bias_addr() { return this->m_bias_addr; }
