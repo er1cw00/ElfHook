@@ -77,7 +77,7 @@ bool elf_hooker::phrase_proc_maps_line(char* line, char** paddr, char** pflags, 
 
 bool elf_hooker::check_flags_and_devno(char* flags, char* dev)
 {
-    if (flags[0] != 'r' || flags[3] == 's') {
+    if (!flags || flags[0] != 'r' || flags[3] == 's') {
         /*
             1. mem section cound NOT be read, without 'r' flag.
             2. read from base addr of /dev/mail module would crash.
@@ -140,6 +140,16 @@ void elf_hooker::phrase_proc_maps()
     }
 }
 
+void elf_hooker::dump_module_list()
+{
+    for (std::map<std::string, elf_module>::iterator itor = m_modules.begin();
+                    itor != m_modules.end();
+                    itor++ )
+    {
+        log_info("BaseAddr: %lx ModuleName: %s\n", (unsigned long)itor->second.get_base_addr(), itor->second.get_module_name());
+    }
+}
+
 bool elf_hooker::get_module_by_name(const char * filename, elf_module & module) {
     std::string module_name = filename;
     std::map<std::string, elf_module>::iterator itor = m_modules.find(module_name);
@@ -183,16 +193,6 @@ elf_module* elf_hooker::create_module(const char* soname)
         fclose(fd);
     }
     return NULL;
-}
-
-void elf_hooker::dump_module_list()
-{
-    for (std::map<std::string, elf_module>::iterator itor = m_modules.begin();
-                    itor != m_modules.end();
-                    itor++ )
-    {
-        log_info("BaseAddr: %lx ModuleName: %s\n", (unsigned long)itor->second.get_base_addr(), itor->second.get_module_name());
-    }
 }
 
 void elf_hooker::hook_all_modules(const char* func_name, void* pfn_new, void** ppfn_old)
@@ -243,7 +243,7 @@ void * elf_hooker::base_addr_from_soinfo(void * soinfo_addr)
     return NULL;
 }
 
-void * elf_hooker::lookup_loaded_dylib(const char* soname) {
+void * elf_hooker::find_loaded_soinfo(const char* soname) {
     if (m_soinfo_list) {
         struct soinfo * soinfo = reinterpret_cast<struct soinfo *>(m_soinfo_list);
         while(soinfo) {
@@ -313,12 +313,10 @@ bool elf_hooker::load_soinfo_list() {
             ld_soname = "ld-android.so";
         }
         void * libdl_handle = dlopen(ld_soname, RTLD_GLOBAL);
-//        log_dbg("m_soinfo_list(%p), ld_soname(%s)\n", libdl_handle, ld_soname);
         if ((uintptr_t)libdl_handle & 0x01 == 0) {
             this->m_soinfo_list = libdl_handle;
         } else {
             if (this->m_soinfo_handles_map && this->m_origin_soinfo_map_find) {
-//                log_dbg("map:(%p), find(%p)\n", (void*)this->m_soinfo_handles_map, (void*)this->m_origin_soinfo_map_find);
                 void * itor = this->m_origin_soinfo_map_find(this->m_soinfo_handles_map, reinterpret_cast<uintptr_t*>(&libdl_handle));
                 if (itor != NULL) { // itor != g_soinfo_handles_map.end()
 #if defined(__LP64__)
@@ -388,5 +386,4 @@ bool elf_hooker::find_function_addr(const char * module_name, const char * sym_n
     }
     return true;
 }
-
 

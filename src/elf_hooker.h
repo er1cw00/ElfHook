@@ -26,8 +26,9 @@ public:
     elf_module* create_module(const char* soname);
 
     static uint32_t get_sdk_version();
-    void* lookup_loaded_dylib(const char* soname);
-    void* base_addr_from_soinfo(void* soinfo_addr);
+    static void* base_addr_from_soinfo(void* soinfo_addr);
+    
+    void* find_loaded_soinfo(const char* soname);
     /* *
         prehook_cb invoked before really hook,
         if prehook_cb NOT set or return true, this module will be hooked,
@@ -60,7 +61,6 @@ protected:
     fn_soinfo_map_find      m_origin_soinfo_map_find;
     void                    *m_soinfo_handles_map;
     void                    *m_soinfo_list;
-
 
     std::map<std::string, elf_module> m_modules;
     bool (*m_prehook_cb)(const char* module_name, const char* func_name);
