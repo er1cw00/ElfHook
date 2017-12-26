@@ -98,8 +98,8 @@ static inline ElfW(Word) elf_r_type(ElfW(Word) info) { return ELF32_R_TYPE(info)
 #define DT_ANDROID_RELSZ ((int)0x60000010)
 
 
-#define PAGE_START(addr) (~(getpagesize() - 1) & (addr))
-#define PAGE_END(addr)   PAGE_START((addr) + (PAGE_SIZE-1))
+#define PAGE_START(addr)    (~(getpagesize() - 1) & (addr))
+#define PAGE_END(addr)      PAGE_START((addr) + (PAGE_SIZE-1))
 #define PAGE_OFFSET(x)      ((x) & ~PAGE_MASK)
 
 #define SAFE_SET_VALUE(t, v) if(t) *(t) = (v)
