@@ -8,7 +8,7 @@ public class ElfHooker {
     private static final String TAG = "ElfHooker";
     private static boolean isLoadLibrary;
     public native int setHook();
-//    public native int test();
+    public native int test();
 
     static {
         try {

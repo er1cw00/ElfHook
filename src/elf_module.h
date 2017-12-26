@@ -24,7 +24,7 @@ public:
     inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 
     bool hook(const char *symbol, void *replace_func, void **old_func);
-    bool load(void) {return this->get_segment_view();}
+    bool load(void);
 
     void dump_elf_header(void);
     void dump_sections();
@@ -41,8 +41,6 @@ protected:
 
     uint32_t elf_hash(const char *name);
     uint32_t gnu_hash(const char *name);
-
-    bool get_segment_view(void);
 
     ElfW(Phdr)* find_segment_by_type(const ElfW(Word) type);
     ElfW(Shdr)* find_section_by_name(const char *sname);

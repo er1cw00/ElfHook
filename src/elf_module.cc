@@ -14,7 +14,6 @@
 #include "elf_module.h"
 
 
-
 elf_module::elf_module(ElfW(Addr) base_addr, const char* module_name)
 {
     this->m_base_addr   = base_addr;
@@ -97,7 +96,7 @@ ElfW(Addr) elf_module::caculate_bias_addr(const ElfW(Ehdr)* elf)
     return 0;
 }
 
-bool elf_module::get_segment_view(void)
+bool elf_module::load(void)
 {
     if (this->m_is_loaded) {
         return true;
@@ -437,7 +436,7 @@ bool elf_module::hook(const char *symbol, void *replace_func, void **old_func)
     assert(symbol);
 
     if (!this->m_is_loaded) {
-        this->m_is_loaded = this->get_segment_view();
+        this->m_is_loaded = this->load();
         if (!this->m_is_loaded) {
             return false;
         }
