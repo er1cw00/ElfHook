@@ -63,9 +63,10 @@ int main(int argc, char* argv[])
     log_info("artAllocObjectFromCodeResolvedRegion : %p\n", f);
 
     hooker.set_prehook_cb(__prehook);
-//    hooker.phrase_proc_maps();
+
     hooker.load();
-//    hooker.dump_module_list();
+    hooker.dump_soinfo_list();
+    
     hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
     hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
 
@@ -106,56 +107,39 @@ static JNINativeMethod __methods[] =
 
 typedef uint32_t (*fn_get_sdk_version)(void);
 
-void test() {
-    void * h = dlopen("libdl.so", RTLD_GLOBAL);
-    log_info("h:%p\n",h);
-    if (h) {
-        fn_get_sdk_version fn = (fn_get_sdk_version)dlsym(h, "android_get_application_target_sdk_version");
-        log_info("v: %p\n", fn);
-        log_info("sdk version: %x\n", fn());
-    }
-}
+
 
 static int __set_hook(JNIEnv *env, jobject thiz)
 {
-    test();
     log_info("__set_hook() -->\r\n");
 //    __hooker.set_prehook_cb(__prehook);
     __hooker.load();
-    __hooker.dump_module_list();
+    __hooker.dump_soinfo_list();
 //    __hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
 //    __hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
 //    __hooker.hook_all_modules("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
 
-    elf_module* module = __hooker.create_module("libart.so");
-    log_info("module base:%lx, %lx, %s\n",
-            (unsigned long)module->get_base_addr(),
-            (unsigned long)module->get_bias_addr(),
-            module->get_module_name());
+    elf_module module;
+    if (__hooker.new_module("libart.so", module)) {
+        
+        log_info("module base:%lx, %lx, %s\n",
+                (unsigned long)module.get_base_addr(),
+                (unsigned long)module.get_bias_addr(),
+                module.get_module_name());
 
-    void * h = dlopen("/system/lib/libc.so", RTLD_GLOBAL);
-    log_info("dlopen() h (%p)\n", h);
+        void * h = dlopen("/system/lib/libc.so", RTLD_GLOBAL);
+        log_info("dlopen() h (%p)\n", h);
 
-    module->hook("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
-    module->hook("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
-    module->hook("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
-
-#if 0
-    void* h = dlopen("libart.so", RTLD_LAZY);
-    if (h != NULL) {
-        void* f = dlsym(h,"artAllocObjectFromCodeResolvedRegion");
-        log_info("artAllocObjectFromCodeResolvedRegion : %p\n", f);
-    } else {
-        log_error("open libart.so fail\n");
+        module.hook("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
+        module.hook("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
+        module.hook("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
     }
-#endif
     return 0;
 }
 
 static int __test(JNIEnv *env, jobject thiz)
 {
     log_info("__test() -->\r\n");
-    __hooker.dump_proc_maps();
     return 0;
 }
 
