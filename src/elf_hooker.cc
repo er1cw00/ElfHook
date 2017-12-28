@@ -18,16 +18,17 @@
 
 elf_hooker::elf_hooker()
 {
-    this->m_prehook_cb = NULL;
-    this->m_origin_dlopen = (fn_dlopen)dlsym(NULL, "dlopen");
-    this->m_origin_dlopen_ext = NULL;
-    this->m_origin_soinfo_map_find = NULL;
+    this->m_modules.clear();
+    this->m_prehook_cb              = NULL;
+    this->m_origin_dlopen           = (fn_dlopen)dlsym(NULL, "dlopen");
+    this->m_origin_dlopen_ext       = NULL;
+    this->m_origin_soinfo_map_find  = NULL;
     log_dbg("dlopen: %p\n", this->m_origin_dlopen);
 }
 
 elf_hooker::~elf_hooker()
 {
-    m_modules.clear();
+    this->m_modules.clear();
     this->m_prehook_cb = NULL;
 }
 
@@ -156,7 +157,7 @@ void elf_hooker::dump_soinfo_list()
 
 bool elf_hooker::new_module(const char* soname, elf_module & module)
 {   
-    soinfo * so = this->find_loaded_soinfo(soname);
+    struct soinfo * so = this->find_loaded_soinfo(soname);
     if (so && so->base && elf_module::is_elf_module((void *)so->base)) {
         module.set_base_addr(so->base);
         module.set_module_name(soname);
@@ -243,7 +244,6 @@ uint32_t elf_hooker::get_sdk_version()
 {
     char sdk[32] = {0};
     __system_property_get("ro.build.version.sdk", sdk);
-//    log_dbg("get_sdk_version() -> sdk version: %s\n", sdk);
     return atoi(sdk);
 }
 
@@ -315,6 +315,18 @@ void elf_hooker::load_soinfo_handle_map(uintptr_t bias_addr) {
      if (dlopen_ext_offset) {
          this->m_origin_dlopen_ext = reinterpret_cast<fn_dlopen_ext>(bias_addr + dlopen_ext_offset);
      }
+
+    uintptr_t solist_offset = static_cast<uintptr_t>(NULL);
+    size_t solist_size = 0;
+    if (!sfile.find_variable("__dl__ZL6solist", solist_offset, solist_size)) {
+        log_warn("find solist variable offset fail!\n");
+    }
+    log_dbg("solist_offset:(%p)\n", (void *)solist_offset);
+    if (solist_offset) {
+        uint32_t * addr  = *reinterpret_cast<uint32_t**>(bias_addr + solist_offset);
+        this->m_soinfo_list = reinterpret_cast<void*>(addr);
+    }
+
     return;
 } 
 
@@ -353,25 +365,8 @@ bool elf_hooker::load_soinfo_list() {
             libdl_handle = ::dlopen(ld_soname, RTLD_GLOBAL);
         }
         log_dbg("libdl_handle(%p)\n", libdl_handle);
-        if ((uintptr_t)libdl_handle & 0x01 == 0) {
-            this->m_soinfo_list = libdl_handle;
-        } else {
-            if (this->m_soinfo_handles_map && this->m_origin_soinfo_map_find) {
-                void * itor = this->m_origin_soinfo_map_find(this->m_soinfo_handles_map, reinterpret_cast<uintptr_t*>(&libdl_handle));
-                if (itor != NULL) { // itor != g_soinfo_handles_map.end()
-#if defined(__LP64__)
-                    //TODO 
-                    //this->m_soinfo_list = reinterpret_cast<soinfo *>(*(uint64_t *)((uintptr_t)itor + 0x0c));
-#else
-                    this->m_soinfo_list = reinterpret_cast<soinfo *>(*(uint32_t *)((uintptr_t)itor + 0x0c));
-#endif
-                    log_dbg("m_soinfo_list:(%p)\n", (void*)this->m_soinfo_list);
-                }
-            }
-        }
-        if (0 && this->m_soinfo_list) {
-            dump_hex((uint8_t *)m_soinfo_list, 256);
-        }
+        this->m_soinfo_list = soinfo_from_handle(libdl_handle);
+        log_dbg("m_soinfo_list:(%p)\n", (void*)this->m_soinfo_list);
     }
     return this->m_soinfo_list != NULL;
 }
@@ -379,8 +374,6 @@ bool elf_hooker::load_soinfo_list() {
 bool elf_hooker::load() {
     void * base_addr = NULL;
     void * bias_addr = NULL;
-    //this->phrase_proc_maps(NULL, this->m_modules);
-    //dump_module_list();
     elf_module module;
     if (!this->new_module("/system/bin/linker", module)) {
         return false;
@@ -396,6 +389,7 @@ bool elf_hooker::load() {
         this->load_soinfo_list();
     }
 
+	return true;
 }
 
 bool elf_hooker::find_function_addr(const char * module_name, const char * sym_name, uintptr_t & func_addr) {
@@ -427,6 +421,6 @@ bool elf_hooker::find_function_addr(const char * module_name, const char * sym_n
             return true;
         }
     }
-    return true;
+    return false;
 }
 

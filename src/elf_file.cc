@@ -56,7 +56,7 @@ bool elf_file::load(const char * realpath) {
     this->m_soname = basename(realpath);
     this->m_fd = fd;
 
-    pread64(this->m_fd, &m_ehdr, sizeof(m_ehdr), 0);
+    pread(this->m_fd, &m_ehdr, sizeof(m_ehdr), 0);
     if (!elf_module::is_elf_module((void *)&this->m_ehdr)) {
         log_error("%s check elf header fail.\n", this->get_realpath());
         return false;
@@ -153,6 +153,7 @@ bool elf_file::read_section_headers() {
     }
     this->m_shstrtab = static_cast<const char *>(this->m_shstrtab_fragment.data());
     this->m_shstrtab_size = shstrtab_shdr->sh_size;
+    return true;
 }
 
 bool elf_file::read_sections() {
