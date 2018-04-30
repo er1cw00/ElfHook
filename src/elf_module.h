@@ -9,7 +9,9 @@
 class elf_module {
 
 public:
-    elf_module() {elf_module(0, "");}
+
+    elf_module() { new (this) elf_module(0, ""); }
+
     elf_module(ElfW(Addr) base_addr, const char* module_name);
     ~elf_module();
 
