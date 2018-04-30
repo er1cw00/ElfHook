@@ -16,23 +16,24 @@ static void* (*__old_impl_android_dlopen_ext)(const char* filename, int flags, c
 
 extern "C" {
 
-    static void* __nativehook_impl_dlopen(const char* filename, int flag)
-    {
+    static void* __nativehook_impl_dlopen(const char* filename, int flag) {
+
+
         log_info("__nativehook_impl_dlopen -> (%s)\n", filename);
         void* res = __old_impl_dlopen(filename, flag);
         log_info("res: %p\n", res);
         return res;
     }
 
-    static int __nativehook_impl_connect(int sockfd,struct sockaddr * serv_addr,int addrlen)
-    {
+    static int __nativehook_impl_connect(int sockfd,struct sockaddr * serv_addr,int addrlen) {
+
         log_info("__nativehook_impl_connect ->\n");
         int res = __old_impl_connect(sockfd, serv_addr, addrlen);
         return res;
     }
 
-    static void* __nativehook_impl_android_dlopen_ext(const char* filename, int flags, const void* extinfo)
-    {
+    static void* __nativehook_impl_android_dlopen_ext(const char* filename, int flags, const void* extinfo) {
+
         log_info("__nativehook_impl_android_dlopen_ext -> (%s)\n", filename);
         void* res = __old_impl_android_dlopen_ext(filename, flags, extinfo);
         log_info("res: %p\n", res);
@@ -41,11 +42,8 @@ extern "C" {
 
 }
 
-static bool __prehook(const char* module_name, const char* func_name)
-{
-    return true;
-    if (strstr(module_name, "libwebviewchromium.so") != NULL)
-    {
+static bool __prehook(const char* module_name) {
+    if (strstr(module_name, "libwebviewchromium.so") != NULL) {
        return true;
     }
     return false;
@@ -53,8 +51,7 @@ static bool __prehook(const char* module_name, const char* func_name)
 
 #if (ELFHOOK_STANDALONE)
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     char ch = 0;
     elf_hooker hooker;
 
@@ -67,8 +64,14 @@ int main(int argc, char* argv[])
     hooker.load();
     hooker.dump_soinfo_list();
     
-    hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
-    hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
+    struct elf_rebinds rebinds[4] = {
+        {"dlopen",            (void *)__nativehook_impl_dlopen,            (void **)&__old_impl_dlopen},
+        {"connect",           (void *)__nativehook_impl_connect,           (void **)&__old_impl_connect},
+        {"android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext},
+        {NULL, NULL, NULL},
+    };
+
+    hooker.hook_all_modules(rebinds);
 
     fprintf(stderr, "old dlopen: %p\n", __old_impl_dlopen);
     fprintf(stderr, "old connect: %p\n", __old_impl_connect);
@@ -112,12 +115,18 @@ typedef uint32_t (*fn_get_sdk_version)(void);
 static int __set_hook(JNIEnv *env, jobject thiz)
 {
     log_info("__set_hook() -->\r\n");
-//    __hooker.set_prehook_cb(__prehook);
+    __hooker.set_prehook_cb(__prehook);
     __hooker.load();
     __hooker.dump_soinfo_list();
-//    __hooker.hook_all_modules("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
-//    __hooker.hook_all_modules("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
-//    __hooker.hook_all_modules("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
+
+    struct elf_rebinds rebinds[4] = {
+        {"dlopen",            (void *)__nativehook_impl_dlopen,            (void **)&__old_impl_dlopen},
+        {"connect",           (void *)__nativehook_impl_connect,           (void **)&__old_impl_connect},
+        {"android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext},
+        {NULL, NULL, NULL},
+    };
+
+    __hooker.hook_all_modules(rebinds);
 
     elf_module module;
     if (__hooker.new_module("libart.so", module)) {
@@ -130,8 +139,8 @@ static int __set_hook(JNIEnv *env, jobject thiz)
         void * h = dlopen("/system/lib/libc.so", RTLD_GLOBAL);
         log_info("dlopen() h (%p)\n", h);
 
-        module.hook("dlopen", (void*)__nativehook_impl_dlopen, (void**)&__old_impl_dlopen);
-        module.hook("connect", (void*)__nativehook_impl_connect, (void**)&__old_impl_connect);
+        module.hook("dlopen",             (void*)__nativehook_impl_dlopen,             (void**)&__old_impl_dlopen);
+        module.hook("connect",            (void*)__nativehook_impl_connect,            (void**)&__old_impl_connect);
         module.hook("android_dlopen_ext", (void*)__nativehook_impl_android_dlopen_ext, (void**)&__old_impl_android_dlopen_ext);
     }
     return 0;
