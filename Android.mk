@@ -11,7 +11,7 @@ LOCAL_SRC_FILES := \
                 src/elf_module.cc \
                 src/elf_file.cc \
                 src/elf_mapped.cc \
-				src/main.cc
+                src/main.cc
 
 LOCAL_C_INCLUDES :=
 

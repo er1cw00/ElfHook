@@ -16,8 +16,7 @@
 #include "elf_file.h"
 #include "elf_soinfo.h"
 
-elf_hooker::elf_hooker()
-{
+elf_hooker::elf_hooker() {
     this->m_modules.clear();
     this->m_prehook_cb              = NULL;
     this->m_origin_dlopen           = (fn_dlopen)dlsym(NULL, "dlopen");
@@ -26,9 +25,7 @@ elf_hooker::elf_hooker()
     log_dbg("dlopen: %p\n", this->m_origin_dlopen);
 }
 
-elf_hooker::~elf_hooker()
-{
-    this->m_modules.clear();
+elf_hooker::~elf_hooker() {
     this->m_prehook_cb = NULL;
 }
 
@@ -49,15 +46,12 @@ bool elf_hooker::phrase_proc_base_addr(char* addr, void** pbase_addr, void** pen
     return false;
 }
 
-bool elf_hooker::phrase_dev_num(char* devno, int *pmajor, int *pminor)
-{
+bool elf_hooker::phrase_dev_num(char* devno, int *pmajor, int *pminor) {
     *pmajor = 0;
     *pminor = 0;
-    if (devno != NULL)
-    {
+    if (devno != NULL) {
         char* colon_pos = strchr(devno, ':');
-        if (colon_pos != NULL)
-        {
+        if (colon_pos != NULL) {
             *pmajor = strtoul(devno, NULL, 16);
             *pminor = strtoul(colon_pos + 1, NULL, 16);
             return true;
@@ -143,8 +137,7 @@ size_t elf_hooker::phrase_proc_maps(const char* so_name, std::map<std::string, e
     return modules.size();
 }
 
-void elf_hooker::dump_soinfo_list()
-{
+void elf_hooker::dump_soinfo_list() {
     log_dbg("dump_soinfo_list()-> %p\n", this->m_soinfo_list);
     if (this->m_soinfo_list) {
         struct soinfo * soinfo = reinterpret_cast<struct soinfo *>(m_soinfo_list);
@@ -155,8 +148,7 @@ void elf_hooker::dump_soinfo_list()
     }
 }
 
-bool elf_hooker::new_module(const char* soname, elf_module & module)
-{   
+bool elf_hooker::new_module(const char* soname, elf_module & module) {
     struct soinfo * so = this->find_loaded_soinfo(soname);
     if (so && so->base && elf_module::is_elf_module((void *)so->base)) {
         module.set_base_addr(so->base);
@@ -194,8 +186,8 @@ void elf_hooker::hook_all_modules(const char* func_name, void* pfn_new, void** p
         log_dbg("hook_all_modules -> \n");
         std::map<std::string, elf_module> modules;
         if (this->phrase_proc_maps(NULL, modules)) {
-            for (std::map<std::string, elf_module>::iterator itor = m_modules.begin();
-                                                            itor != m_modules.end();
+            for (std::map<std::string, elf_module>::iterator itor = modules.begin();
+                                                            itor != modules.end();
                                                             itor++ ) {
                 if (this->m_prehook_cb && !this->m_prehook_cb(itor->second.get_module_name(), func_name)) {
                     continue;
@@ -209,11 +201,9 @@ void elf_hooker::hook_all_modules(const char* func_name, void* pfn_new, void** p
     return;
 }
 
-void elf_hooker::dump_proc_maps()
-{
+void elf_hooker::dump_proc_maps() {
     FILE* fd = fopen("/proc/self/maps", "r");
-    if (fd != NULL)
-    {
+    if (fd != NULL) {
         char buff[2048+1];
         while(fgets(buff, 2048, fd) != NULL)
         {
@@ -247,8 +237,7 @@ uint32_t elf_hooker::get_sdk_version()
     return atoi(sdk);
 }
 
-void * elf_hooker::base_addr_from_soinfo(void * soinfo_addr)
-{
+void * elf_hooker::base_addr_from_soinfo(void * soinfo_addr) {
     struct soinfo * soinfo = reinterpret_cast<struct soinfo *>(soinfo_addr);
     if (soinfo != NULL) {
         return reinterpret_cast<void *>(soinfo->base);
@@ -329,7 +318,6 @@ void elf_hooker::load_soinfo_handle_map(uintptr_t bias_addr) {
 
     return;
 } 
-
 
 struct soinfo * elf_hooker::soinfo_from_handle(void * handle) {
     struct soinfo * soinfo = NULL;
