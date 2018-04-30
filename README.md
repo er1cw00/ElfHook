@@ -49,7 +49,7 @@ ref:
 
 elf\_file用于解析文件形式的elf文件, elf\_module用于解析加载到内存中的elf文件, elf_hooker 封装linker中解析出来的私有方法和对象，例如dlopen\_ext、soinfo\_list等
 
-###3.1 elf\_hooker接口
+### 3.1 elf\_hooker接口
 
 - bool elf\_hooker::load()
 
@@ -97,7 +97,7 @@ struct elf_rebinds {
 
 > &emsp;ppfn\_old: 返回的劫持前原函数地址, **ppfn\_old非空**
 
-###3.2 elf\_module接口
+### 3.2 elf\_module接口
 
 - elf\_module::elf\_module(ElfW(Addr) base\_addr, const char* module\_name)
 
