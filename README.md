@@ -1,6 +1,6 @@
 ## 0x01 Brief About ElfHook
 
-&emsp;&emsp;ElfHook的代码参考boyliang的AllHookInOne, 并修复AllHookInOne中的一些问题，同时也解决我们项目中遇到的一些问题。
+&emsp;&emsp;ElfHook的代码参考boyliang的AllHookInOne
 
 - .dynmaic节中没有DT\_HAST，使用DT\_GNU\_HASH的情况下.
 
