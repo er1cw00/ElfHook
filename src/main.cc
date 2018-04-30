@@ -18,7 +18,6 @@ extern "C" {
 
     static void* __nativehook_impl_dlopen(const char* filename, int flag) {
 
-
         log_info("__nativehook_impl_dlopen -> (%s)\n", filename);
         void* res = __old_impl_dlopen(filename, flag);
         log_info("res: %p\n", res);
@@ -49,7 +48,7 @@ static bool __prehook(const char* module_name) {
     return false;
 }
 
-#if (ELFHOOK_STANDALONE)
+#if (STANDALONE)
 
 int main(int argc, char* argv[]) {
     char ch = 0;

@@ -46,7 +46,7 @@ LOCAL_SHARED_LIBRARIES := stdc++
 LOCAL_CFLAGS := \
                 -Wno-write-strings \
                 -DHAVE_LITTLE_ENDIAN \
-                -DELFHOOK_STANDALONE=0
+                -DSTANDALONE=0
 include $(BUILD_SHARED_LIBRARY)
 
 ####################################
@@ -68,6 +68,6 @@ LOCAL_SHARED_LIBRARIES := stdc++
 LOCAL_CFLAGS := \
                 -Wno-write-strings \
                 -DHAVE_LITTLE_ENDIAN \
-                -DELFHOOK_STANDALONE=1
+                -DSTANDALONE=1
 
 include $(BUILD_EXECUTABLE)
