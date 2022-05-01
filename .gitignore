@@ -2,3 +2,5 @@ objs
 libs
 bin
 *.so
+build/
+
