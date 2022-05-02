@@ -19,6 +19,7 @@
 #include "elf_common.h"
 #include "elf_file.h"
 #include "elf_soinfo.h"
+#include "elf_log.h"
 
 elf_hooker::elf_hooker() {
 

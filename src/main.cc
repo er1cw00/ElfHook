@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 
 #include "elf_hooker.h"
+#include "elf_log.h"
 
 static void* (*__old_impl_dlopen)(const char* filename, int flag);
 

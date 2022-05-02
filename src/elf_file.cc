@@ -14,7 +14,7 @@
 #include "elf_common.h"
 #include "elf_file.h"
 #include "elf_module.h"
-
+#include "elf_log.h"
 
 elf_file::elf_file() {
     this->m_phdr = NULL;

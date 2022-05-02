@@ -5,34 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <android/log.h>
-
-#define ELFHOOK_DEBUG (1)
-
-#if (ELFHOOK_DEBUG)
-
-#define log_info(...)   do{ fprintf(stdout, __VA_ARGS__); } while(0)
-#define log_error(...)  do{ fprintf(stdout, __VA_ARGS__); } while(0)
-#define log_warn(...)   do{ fprintf(stdout, __VA_ARGS__); } while(0)
-#define log_fatal(...)  do{ fprintf(stdout, __VA_ARGS__); } while(0)
-
-#if 0
-#define log_dbg(...)    do{ } while(0)
-#else
-#define log_dbg(...)    do{ fprintf(stdout, __VA_ARGS__); } while(0)
-#endif
-
-#else
-
-#define sTag ("ELFKooH")
-#define log_info(...)   do{ __android_log_print(ANDROID_LOG_INFO,   sTag,  __VA_ARGS__); }while(0)
-#define log_error(...)  do{ __android_log_print(ANDROID_LOG_ERROR,  sTag,  __VA_ARGS__); }while(0)
-#define log_warn(...)   do{ __android_log_print(ANDROID_LOG_WARN,   sTag,  __VA_ARGS__); }while(0)
-#define log_dbg(...)    do{ __android_log_print(ANDROID_LOG_DEBUG,  sTag,  __VA_ARGS__); }while(0)
-#define log_fatal(...)  do{ __android_log_print(ANDROID_LOG_FATAL,  sTag,  __VA_ARGS__); }while(0)
-
-#endif
-
 
 #if defined(__LP64__)
 #define ElfW(type) Elf64_ ## type

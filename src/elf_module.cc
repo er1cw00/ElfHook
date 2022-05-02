@@ -13,6 +13,7 @@
 #include "elf_common.h"
 #include "elf_module.h"
 
+#include "elf_log.h"
 
 elf_module::elf_module(ElfW(Addr) base_addr, const char* module_name)
 {
