@@ -34,15 +34,12 @@ ref:
 
 #### Build
 
-> make
+> ./build.sh arm     // 构建arm32 target
 
-> make clean
+> ./build.sh arm64   // 构建arm64 target
 
-> make install  # copy libElfHook.so to jniLibs dir in Demo. 
+> ./build.sh both   // 构建arm32和arm64 targets
 
-#### or
-
-> ndk-build NDK\_PROJECT\_PATH=. NDK\_OUT=./objs NDK\_LIBS\_OUT=./bin APP\_BUILD\_SCRIPT=./Android.mk APP\_PLATFORM=android-23 APP\_ABI=arm64-v8a,armeabi-v7a APP_STL=stlport\_static
 
 ## 0x03 How To Use
 
@@ -101,9 +98,9 @@ struct elf_rebinds {
 
 - elf\_module::elf\_module(ElfW(Addr) base\_addr, const char* module\_name)
 
-elf\_module构造函数，传入elf内存基地址和文件路径作为参数，如果使用无参数的默认构造函数，则在调用load前需要调用set\_base\_addr()和 set\_module\_name()设置基地址和路径。
+elf\_module构造函数，传入elf内存基地址和文件路径作为参数，如果使用无参数的默认构造函数，则在调用get\_segment\_view前需要调用set\_base\_addr()和 set\_module\_name()设置基地址和路径。
 
-- bool elf\_module::load()
+- bool elf\_module::get_segment_view()
 
 解析elf格式
 
