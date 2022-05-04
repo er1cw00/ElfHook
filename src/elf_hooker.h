@@ -70,9 +70,8 @@ typedef void (*fn_dl_mutex_unlock)(void * mutex);
     }
 
 protected:
-    size_t phrase_proc_maps(const char* so_name, std::map<std::string, elf_module> & modules, bool lock);
-    bool check_flags_and_devno(char* flags, char* dev);
-    bool phrase_proc_maps_line(char* line, char** paddr, char** pflags, char** pdev, char** pfilename);
+
+    int phrase_proc_maps(const char* so_name, std::map<std::string, elf_module> & modules, bool lock);
     bool phrase_proc_base_addr(char* addr, void** pbase_addr, void** pend_addr);
     bool phrase_dev_num(char* devno, int *pmajor, int *pminor);
 

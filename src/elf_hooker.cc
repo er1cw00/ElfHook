@@ -15,11 +15,15 @@
 #include <assert.h>
 #include <dlfcn.h>
 
+#include <unordered_map>
+
 #include "elf_hooker.h"
 #include "elf_common.h"
 #include "elf_file.h"
 #include "elf_soinfo.h"
 #include "elf_log.h"
+
+extern "C" void* elf_dlopen_ext(const char* filename, int flag, void* extinfo, void* caller_addr, void* raw);
 
 elf_hooker::elf_hooker() {
 
@@ -27,7 +31,7 @@ elf_hooker::elf_hooker() {
     this->m_is_loaded               = false;
     this->m_is_use_solist           = false;
     this->m_prehook_cb              = NULL;
-    this->m_origin_dlopen           = (fn_dlopen)dlsym(NULL, "dlopen");
+    this->m_origin_dlopen           = NULL; //(fn_dlopen)dlsym(NULL, "dlopen");
     this->m_origin_dlopen_ext       = NULL;
     this->m_origin_soinfo_map_find  = NULL;
     this->m_dl_mutex_lock           = NULL;
@@ -81,85 +85,71 @@ bool elf_hooker::build_all_modules() {
     }
     return !m_modules.empty();
 }
-bool elf_hooker::phrase_proc_maps_line(char* line, char** paddr, char** pflags, char** pdev, char** pfilename) {
-    const char *sep = "\t \r\n";
-    char *buff = NULL;
-    char *unused = NULL;
-    *paddr = strtok_r(line, sep, &buff);
-    *pflags = strtok_r(NULL, sep, &buff);
-    unused =strtok_r(NULL, sep, &buff);  // offsets
-    *pdev = strtok_r(NULL, sep, &buff);  // dev number.
-    unused = strtok_r(NULL, sep, &buff);  // node
-    *pfilename = strtok_r(NULL, sep, &buff); //module name
-    return (*paddr != NULL && *pfilename != NULL && *pflags != NULL);
-}
-
-bool elf_hooker::check_flags_and_devno(char* flags, char* dev) {
-
-    if (!flags || flags[0] != 'r' || flags[3] == 's') {
-        /*
-            1. mem section cound NOT be read, without 'r' flag.
-            2. read from base addr of /dev/mail module would crash.
-               i dont know how to handle it, just skip it.
-
-               1f5573000-1f58f7000 rw-s 1f5573000 00:0c 6287 /dev/mali0
-
-        */
-        return false;
-    }
-    int major = 0, minor = 0;
-    if (!phrase_dev_num(dev, &major, &minor) || major == 0) {
-        /*
-            if dev major number equal to 0, mean the module must NOT be
-            a shared or executable object loaded from disk.
-            e.g:
-            lookup symbol from [vdso] would crash.
-            7f7b48a000-7f7b48c000 r-xp 00000000 00:00 0  [vdso]
-        */
-        return false;
-    }
-    return true;
-}
 
 int elf_hooker::phrase_proc_maps(const char* so_name, std::map<std::string, elf_module> & modules, bool lock) {
+    log_info("phrase_proc_maps() -->\n");
     modules.clear();
     FILE* fd = fopen("/proc/self/maps", "r");
     if (fd != NULL) {
         char buff[2048+1];
         while(fgets(buff, 2048, fd) != NULL) {
-            char *addr = NULL;
-            char *flags = NULL;
-            char *dev = NULL;
-            char *filename = NULL;
-            if (phrase_proc_maps_line(buff, &addr, &flags, &dev, &filename)) {
-                if (!check_flags_and_devno(flags, dev)) {
-                    continue;
-                }
+            if (so_name != NULL && strstr(buff, so_name) == NULL) {
+                continue;
+            }
+            const char *sep = "\t \r\n";
+            char * line = NULL;
+            char * addr = strtok_r(buff, sep, &line);
+            if (!addr) {
+                continue;
+            }
 
-                if (so_name != NULL && strstr(filename, so_name) == NULL) {
-                    continue;
-                }
-                std::string module_name = filename;
-                std::map<std::string, elf_module>::iterator itor = modules.find(module_name);
-                if (itor == modules.end()) {
-                    void* base_addr = NULL;
-                    void* end_addr = NULL;
-                    if (phrase_proc_base_addr(addr, &base_addr, &end_addr) && elf_module::is_elf_module(base_addr)) {
-                        log_dbg("module_name: %s\n", module_name.c_str());
-                        if (lock && this->get_sdk_version() < 24) {
-                            /* * * * * * * * * * *
-                                android 7 以后版本，同一个动态库，被属于不同android_namespce的caller加载时，会创建多个soinfo对象!
-                                
-                            * */
-                            void * handle = this->dlopen(filename, RTLD_LAZY);
-                        }
-                        elf_module module(reinterpret_cast<ElfW(Addr)>(base_addr), module_name.c_str());
-                        modules.insert(std::pair<std::string, elf_module>(module_name, module));
-                        if (so_name != NULL) {
-                            break;
-                        }
+            char *flags = strtok_r(NULL, sep, &line);
+            if (!flags || flags[0] != 'r' || flags[3] == 's') {
+                /*
+                    1. mem section cound NOT be read, without 'r' flag.
+                    2. read from base addr of /dev/mail module would crash.
+                       i dont know how to handle it, just skip it.
+
+                       1f5573000-1f58f7000 rw-s 1f5573000 00:0c 6287 /dev/mali0
+
+                */
+                continue;
+            }
+            strtok_r(NULL, sep, &line);  // offsets
+            char *dev = strtok_r(NULL, sep, &line);  // dev number.
+            int major = 0, minor = 0;
+            if (!phrase_dev_num(dev, &major, &minor) || major == 0) {
+                /*
+                    if dev major number equal to 0, mean the module must NOT be
+                    a shared or executable object loaded from disk.
+                    e.g:
+                    lookup symbol from [vdso] would crash.
+                    7f7b48a000-7f7b48c000 r-xp 00000000 00:00 0  [vdso]
+                */
+                continue;
+            }
+
+            strtok_r(NULL, sep, &line);  // node
+
+            char* filename = strtok_r(NULL, sep, &line); //module name
+            if (!filename) {
+                continue;
+            }
+            std::string module_name = filename;
+            std::map<std::string, elf_module>::iterator itor = modules.find(module_name);
+            if (itor == modules.end()) {
+                void* base_addr = NULL;
+                void* end_addr = NULL;
+                if (phrase_proc_base_addr(addr, &base_addr, &end_addr) && elf_module::is_elf_module(base_addr)) {
+                    if (lock && this->get_sdk_version() < 24) {
+                        void * handle = this->dlopen(filename, RTLD_LAZY);
                     }
+                    elf_module module(reinterpret_cast<ElfW(Addr)>(base_addr), module_name.c_str());
+                    modules.insert(std::pair<std::string, elf_module>(module_name, module));
                 }
+            }
+            if (so_name != NULL) {
+                break;
             }
         }
         fclose(fd);
@@ -168,24 +158,28 @@ int elf_hooker::phrase_proc_maps(const char* so_name, std::map<std::string, elf_
 }
 
 void elf_hooker::dump_module_list() {
+    log_info("module_list: \n");
     for (std::map<std::string, elf_module>::iterator itor = m_modules.begin();
                     itor != m_modules.end();
                     itor++ ) {
-        log_info("BaseAddr: %p ModuleName: %s\n", 
-            reinterpret_cast<void *>(itor->second.get_base_addr()),
-            itor->second.get_module_name());
+        log_info("\tbase_addr: %p module_name: %s\n",
+                    reinterpret_cast<void *>(itor->second.get_base_addr()),
+                    itor->second.get_module_name());
     }
+    return;
 }
+
 void elf_hooker::dump_soinfo_list() {
+    log_info("soinfo_list: \n");
     if (this->m_is_use_solist) {
         this->dl_mutex_lock();
         struct soinfo * soinfo = reinterpret_cast<struct soinfo *>(m_soinfo_list);
-        while(soinfo) {
+        while (soinfo) {
             const char * realpath = get_realpath_from_soinfo(soinfo);
             realpath = (realpath == NULL) ? "None" : realpath;
-            log_info("BaseAddr: %p ModuleName: %s\n", 
-                reinterpret_cast<void *>(soinfo->base),
-                realpath);
+            log_info("\tbaseAddr: %p soName: %s\n",
+                        reinterpret_cast<void *>(soinfo->base),
+                        realpath);
             soinfo = reinterpret_cast<struct soinfo *>(soinfo->next);
         } // while
         this->dl_mutex_unlock();
@@ -230,18 +224,17 @@ void elf_hooker::hook_all_modules(struct elf_rebinds * rebinds) {
         struct soinfo * ss = reinterpret_cast<struct soinfo *>(m_soinfo_list);
         while(ss) {
             const char * realpath = get_realpath_from_soinfo(ss);
-            if (ss != NULL) {
-                void * base_addr = base_addr_from_soinfo(ss);
-                if (base_addr != NULL) {
-                    if (!this->m_prehook_cb || this->m_prehook_cb(realpath)) {
-                        log_info("Hook module(%s), base(%p)", realpath,  base_addr);
-                        elf_module module(reinterpret_cast<ElfW(Addr)>(base_addr), realpath);
-                        for (int i = 0; rebinds[i].func_name != NULL; i++) {
-                            this->hook(&module, rebinds[i].func_name, rebinds[i].pfn_new, rebinds[i].ppfn_old);
-                        }
+            void * base_addr = base_addr_from_soinfo(ss);
+            if (base_addr != NULL) {
+                if (!this->m_prehook_cb || this->m_prehook_cb(realpath)) {
+                    log_info("Hook module(%s), base(%p)\n", realpath,  base_addr);
+                    elf_module module(reinterpret_cast<ElfW(Addr)>(base_addr), realpath);
+                    for (int i = 0; rebinds[i].func_name != NULL; i++) {
+                        this->hook(&module, rebinds[i].func_name, rebinds[i].pfn_new, rebinds[i].ppfn_old);
                     }
                 }
             }
+
             ss = reinterpret_cast<struct soinfo *>(ss->next);
         } // while
         this->dl_mutex_unlock();
@@ -262,13 +255,15 @@ void elf_hooker::hook_all_modules(struct elf_rebinds * rebinds) {
     return;
 }
 
-void elf_hooker::dump_proc_maps() {
+void elf_hooker::dump_proc_maps()
+{
     FILE* fd = fopen("/proc/self/maps", "r");
-    if (fd != NULL) {
+    if (fd != NULL)
+    {
         char buff[2048+1];
         while(fgets(buff, 2048, fd) != NULL)
         {
-            log_info("%s\n", buff);
+            log_info("line:%s", buff);
         }
         fclose(fd);
     }
@@ -276,7 +271,6 @@ void elf_hooker::dump_proc_maps() {
 }
 
 void * elf_hooker::dlopen(const char * soname, int flags) {
-
     if (this->get_sdk_version() < 24) {
         if (this->m_origin_dlopen) {
             return this->m_origin_dlopen(soname, flags);
@@ -293,7 +287,8 @@ void * elf_hooker::dlopen(const char * soname, int flags) {
 
 void * elf_hooker::dlopen_ext(const char * soname, int flags, void * extinfo, void * caller_addr) {
     if (this->m_origin_dlopen_ext) {
-		return m_origin_dlopen_ext(soname, flags, extinfo, caller_addr);
+        return this->m_origin_dlopen_ext(soname, flags, NULL, caller_addr);
+//        return elf_dlopen_ext(soname, flags, NULL, caller_addr, (void*)this->m_origin_dlopen_ext);
     }
     return NULL;
 }
@@ -331,53 +326,86 @@ struct soinfo * elf_hooker::find_loaded_soinfo(const char* soname) {
 }
 
 struct soinfo * elf_hooker::soinfo_from_handle(void * handle) {
-    void * soinfo = NULL;
+    struct soinfo * soinfo = NULL;
     if ((reinterpret_cast<uintptr_t>(handle) & 1) == 0) {
         return reinterpret_cast<struct soinfo *>(handle);
     }
-    if (this->m_soinfo_handles_map && this->m_origin_soinfo_map_find) {
-        void * itor = this->m_origin_soinfo_map_find(this->m_soinfo_handles_map, reinterpret_cast<uintptr_t*>(&handle));
-        if (itor != NULL) { // itor != g_soinfo_handles_map.end()
-#if defined(__LP64__)
-            #error "arm64 unsupport!"
+    if (this->m_soinfo_handles_map) {
+        if (this->m_origin_soinfo_map_find) {
+            void *itor = this->m_origin_soinfo_map_find(this->m_soinfo_handles_map,
+                                                        reinterpret_cast<uintptr_t *>(&handle));
+            if (itor != NULL) { // itor != g_soinfo_handles_map.end()
+#if (__LP64__)
+                soinfo = reinterpret_cast<struct soinfo *>(*(uint64_t * )((uintptr_t) itor + 0x0c)); // index != 0x0c
 #else
-            soinfo = reinterpret_cast<void *>(*(uint32_t *)((uintptr_t)itor + 0x0c));
+                soinfo = reinterpret_cast<struct soinfo *>(*(uint32_t * )((uintptr_t) itor + 0x0c));
 #endif
-            log_dbg("soinfo_from_handle()-> handle(%p), soinfo:(%p)\n", handle, soinfo);
+                log_dbg("soinfo_from_handle()-> handle(%p), soinfo:(%p)\n", handle, soinfo);
+            }
+        } else {
+            typedef std::unordered_map<uintptr_t, struct soinfo*> soinfo_map_t;
+            soinfo_map_t * p_soinfo_map =  reinterpret_cast<soinfo_map_t *>(this->m_soinfo_handles_map);
+            log_info("soinfo_map.size() %zu", (size_t)p_soinfo_map->size());
+            auto itor = p_soinfo_map->find(uintptr_t(handle));
+            if (itor != p_soinfo_map->end()) {
+                soinfo = (struct soinfo *)itor->second;
+            }
         }
     }
     return reinterpret_cast<struct soinfo *>(soinfo);
 }
 
 bool elf_hooker::load() {
+#if defined(__LP64__)
+    const char* linker_file = "/system/bin/linker64";
+#else
+    const char* linker_file = "/system/bin/linker";
+#endif
     if (this->m_is_loaded) {
         return this->m_is_loaded;
     }
-    int sdk_version = get_sdk_version();
-    if (get_sdk_version() >= 23) { 
-        // android [6, 7, 8]
-        uintptr_t base_addr = static_cast<uintptr_t>(NULL);
-        uintptr_t bias_addr = static_cast<uintptr_t>(NULL);
-        if (this->phrase_proc_maps("/system/bin/linker", m_modules, false) > 0) {
-            std::map<std::string, elf_module>::iterator itor = m_modules.find("/system/bin/linker");
-            if (itor != m_modules.end()) {
-                elf_module module = itor->second;
-                if (module.load()) {
-                    bias_addr = reinterpret_cast<uintptr_t>(module.get_bias_addr());
-                }
+    std::map<std::string, elf_module> modules;
+    ElfW(Addr) base_addr = static_cast<ElfW(Addr)>(NULL);
+    ElfW(Addr) bias_addr = static_cast<ElfW(Addr)>(NULL);
+    if (this->phrase_proc_maps(linker_file, modules, false) > 0) {
+        std::map<std::string, elf_module>::iterator itor = modules.find(linker_file);
+        if (itor != modules.end()) {
+            elf_module module = itor->second;
+            if (module.get_segment_view()) {
+                bias_addr = module.get_bias_addr();
             }
         }
-        log_info("modules->size() = %d\n", m_modules.size());
-        log_info("bias_addr(%p)\n", reinterpret_cast<void *>(bias_addr));
-        if (bias_addr != static_cast<uintptr_t>(NULL)) {
-            elf_file sfile;
-            if (!sfile.load("/system/bin/linker")) {
-                log_error("read /system/bin/linker fail\n");
-                goto fail;
-            }
-#if defined(__LP64__)
-            #error "arm64 unsupport!"
-#else
+    }
+    if (!bias_addr) {
+        log_error("phrase bias_addr fail\n");
+        return false;
+    }
+
+    int sdk_version;
+    elf_file sfile;
+    uintptr_t dlopen_offset = static_cast<uintptr_t>(NULL);
+    if (!sfile.load(linker_file)) {
+        log_error("read %s fail\n", linker_file);
+        goto fail;
+    }
+    dlopen_offset = static_cast<uintptr_t>(NULL);
+    if (!sfile.find_function("__dl_dlopen", dlopen_offset)) {
+        log_warn("find dlopen function offset fail\n");
+    }
+    log_dbg("dlopen_offset:(%p)\n", (void *)dlopen_offset);
+    if (dlopen_offset) {
+        this->m_origin_dlopen = reinterpret_cast<fn_dlopen>(bias_addr + dlopen_offset);
+        log_info("m_origin_dlopen:(%p)", m_origin_dlopen);
+    }
+    sdk_version = get_sdk_version();
+    if (get_sdk_version() >= 23) { 
+        // android [6, 7, 8]
+        m_modules = modules;
+        log_info("modules->size() %zu\n", (size_t)modules.size());
+        log_info("bias_addr: %p\n", (void*)bias_addr);
+
+        if (bias_addr != static_cast<ElfW(Addr)>(NULL)) {
+            // find soinfo_handles_map
             uintptr_t soinfo_handles_map_offset = static_cast<uintptr_t>(NULL);
             size_t soinfo_handles_map_size = 0;
             if (!sfile.find_variable("__dl__ZL20g_soinfo_handles_map", 
@@ -389,12 +417,9 @@ bool elf_hooker::load() {
                     log_warn("find g_soinfo_handles_map variable offset fail\n");
                 }
             }
-           if (soinfo_handles_map_offset) {
+            log_dbg("soinfo_handler_map_offset:(%p), soinfo_handler_map_size(%zu)\n", (void *)soinfo_handles_map_offset, soinfo_handles_map_size);
+            if (soinfo_handles_map_offset) {
                 this->m_soinfo_handles_map = reinterpret_cast<void *>(bias_addr + soinfo_handles_map_offset);
-                log_dbg("soinfo_handler_map_offset:(%p), soinfo_handler_map_size(%d), m_soinfo_handles_map(%p)\n", 
-                    reinterpret_cast<void *>(soinfo_handles_map_offset),
-                    soinfo_handles_map_size,
-                    reinterpret_cast<void *>(this->m_soinfo_handles_map));
             }
 
             uintptr_t soinfo_map_find_offset = static_cast<uintptr_t>(NULL);
@@ -405,76 +430,72 @@ bool elf_hooker::load() {
                     log_warn("find soinfo_map's find function offset fail\n");
                 }
             }
-            
+            log_dbg("soinfo_map_find_offset:(%p)\n", (void *)soinfo_map_find_offset);
             if (soinfo_map_find_offset) {
                 this->m_origin_soinfo_map_find = reinterpret_cast<fn_soinfo_map_find>(bias_addr + soinfo_map_find_offset);
-                log_dbg("soinfo_map_find_offset:(%p), m_origin_soinfo_map_find(%p)\n", 
-                    reinterpret_cast<void *>(soinfo_map_find_offset),
-                    reinterpret_cast<void *>(this->m_origin_soinfo_map_find));
             }
-
+            //find dlopen_ext
             uintptr_t dlopen_ext_offset = static_cast<uintptr_t>(NULL); 
-             if (!sfile.find_function("__dl__ZL10dlopen_extPKciPK17android_dlextinfoPKv", dlopen_ext_offset)) {
-                 if (!sfile.find_function("__dl__ZL10dlopen_extPKciPK17android_dlextinfoPv", dlopen_ext_offset)) {
+            if (this->get_sdk_version() < 28) {
+                if (!sfile.find_function("__dl__ZL10dlopen_extPKciPK17android_dlextinfoPKv", dlopen_ext_offset)) {
+                    if (!sfile.find_function("__dl__ZL10dlopen_extPKciPK17android_dlextinfoPv", dlopen_ext_offset)) {
                      log_warn("find dlopen_ext function offset fail\n");
-                 }
-             }
-             if (dlopen_ext_offset) {
-                 this->m_origin_dlopen_ext = reinterpret_cast<fn_dlopen_ext>(bias_addr + dlopen_ext_offset);
-                 log_info("dlopen_ext_offset:(%p), m_origin_dlopen_ext:(%p)\n", 
-                    reinterpret_cast<void *>(dlopen_ext_offset),
-                    reinterpret_cast<void *>(this->m_origin_dlopen_ext));
-             }
-
+                    } 
+                }
+                log_dbg("dlopen_ext_offset:(%p)\n", (void *)dlopen_ext_offset);
+            } else {
+                if (!sfile.find_function("__dl___loader_android_dlopen_ext", dlopen_ext_offset)) {
+                    log_info("find dlopen_ext function offset fail\n");
+                }
+                log_info("dlopen_ext_offset:(%p)\n", (void *)dlopen_ext_offset);
+            }
+            if (dlopen_ext_offset) {
+                this->m_origin_dlopen_ext = reinterpret_cast<fn_dlopen_ext>(bias_addr + dlopen_ext_offset);
+                log_info("m_origin_dlopen_ext:(%p)\n", m_origin_dlopen_ext);
+            }
+            // find solist
             uintptr_t solist_offset = static_cast<uintptr_t>(NULL);
             size_t solist_size = 0; 
             if (!sfile.find_variable("__dl__ZL6solist", solist_offset, solist_size)) {
                 log_warn("find solist variable offset fail!\n");
             }
+            log_dbg("solist_offset:(%p)\n", (void *)solist_offset);
             if (solist_offset) {
-                uint32_t * addr  = *reinterpret_cast<uint32_t**>(bias_addr + solist_offset);
+                uintptr_t addr  = *(uintptr_t*)(bias_addr + solist_offset);
                 this->m_soinfo_list = reinterpret_cast<void*>(addr);
-                log_info("solist_offset:(%p), m_soinfo_list:(%p)\n", 
-                    reinterpret_cast<void *>(solist_offset),
-                    reinterpret_cast<void *>(this->m_soinfo_list));
+                log_dbg("m_soinfo_list:(%p)\n", (void*)m_soinfo_list);
             }
-
+            // find dl_mutex, pthread_mutex_lock and pthread_mutex_unlock
             uintptr_t dl_mutex_offset = static_cast<uintptr_t>(NULL);
             size_t dl_mutex_size = 0;
             if (!sfile.find_variable("__dl__ZL10g_dl_mutex", dl_mutex_offset, dl_mutex_size)) {
                 log_warn("find g_dl_mutex variable offset fail!\n");
             }
+            log_dbg("dl_mutex_offset:(%p)\n", (void *)dl_mutex_offset);
             if (dl_mutex_offset) {
                 uint32_t * addr  = reinterpret_cast<uint32_t*>(bias_addr + dl_mutex_offset);
                 this->m_dl_mutex = reinterpret_cast<void*>(addr);
-                log_info("dl_mutex_offset:(%p), m_dl_mutex:(%p)\n", 
-                    reinterpret_cast<void *>(dl_mutex_offset),
-                    reinterpret_cast<void *>(this->m_dl_mutex));
+                log_dbg("m_dl_mutex:(%p)\n", (uint32_t*)m_dl_mutex);
             }
 
             uintptr_t dl_mutex_lock_offset = static_cast<uintptr_t>(NULL);
             if (!sfile.find_function("__dl_pthread_mutex_lock", dl_mutex_lock_offset)) {
                 log_warn("find __dl_pthread_mutex_lock funciton offset fail!\n");
             }
-
+            log_dbg("dl_mutex_lock_offset:(%p)\n", (void *)dl_mutex_lock_offset);
             if (dl_mutex_lock_offset) {
                 this->m_dl_mutex_lock = reinterpret_cast<fn_dl_mutex_lock>(bias_addr + dl_mutex_lock_offset);
-                log_info("dl_mutex_lock_offset:(%p), m_dl_mutex_lock:(%p)\n", 
-                    reinterpret_cast<void *>(dl_mutex_lock_offset),
-                    reinterpret_cast<void *>(this->m_dl_mutex_lock));
+                log_dbg("m_dl_mutex_lock:(%p)\n", (uint32_t*)m_dl_mutex_lock);
             }
 
             uintptr_t dl_mutex_unlock_offset = static_cast<uintptr_t>(NULL);
             if (!sfile.find_function("__dl_pthread_mutex_unlock", dl_mutex_unlock_offset)) {
                 log_warn("find __dl_pthread_mutex_lock funciton offset fail!\n");
             }
-
+            log_dbg("dl_mutex_unlock_offset:(%p)\n", (void *)dl_mutex_unlock_offset);
             if (dl_mutex_unlock_offset) {
                 this->m_dl_mutex_unlock = reinterpret_cast<fn_dl_mutex_lock>(bias_addr + dl_mutex_unlock_offset);
-                log_info("dl_mutex_unlock_offset:(%p)， m_dl_mutex_unlock:(%p)\n", 
-                    reinterpret_cast<void *>(dl_mutex_unlock_offset), 
-                    reinterpret_cast<void *
-                    >(this->m_dl_mutex_unlock));
+                log_dbg("m_dl_mutex_unlock:(%p)\n", (uint32_t*)m_dl_mutex_unlock);
             }
             if (this->m_soinfo_list && this->m_dl_mutex && this->m_dl_mutex_lock && this->m_dl_mutex_unlock) {
                 this->m_is_use_solist = true;
@@ -482,15 +503,14 @@ bool elf_hooker::load() {
         } /* bias_addr != NULL */
         if (this->m_is_use_solist) {
             this->m_is_loaded = true;
-            log_info("sdk version (%d), loaded(%d), modules->size() %d\n", sdk_version, this->m_is_loaded, m_modules.size());
+            log_info("sdk version (%d), loaded(%d), modules.size(%zu) with solist\n", sdk_version, this->m_is_loaded, (size_t)m_modules.size());
             return this->m_is_loaded;
         }
-#endif
     } /* get_sdk_version() >= 23 */
 
 fail:
     this->m_is_loaded = this->build_all_modules();
-    log_info("sdk version (%d), loaded(%d), modules->size() %d\n", sdk_version, this->m_is_loaded, m_modules.size());
+    log_info("sdk version (%d), loaded(%d), modules.size(%zu)\n", sdk_version, this->m_is_loaded, (size_t)m_modules.size());
     this->m_is_use_solist = false;
     return this->m_is_loaded;
 }
@@ -503,12 +523,12 @@ bool elf_hooker::find_function_addr(const char * module_name, const char * sym_n
         return false;
     }
 
-    if (!module.load()) {
+    if (!module.get_segment_view()) {
         log_error("load elf module(%s) fail\n", module_name);
         return false;
     }
 
-    uintptr_t bias_addr = reinterpret_cast<uintptr_t>(module.get_bias_addr());
+    uintptr_t bias_addr = module.get_bias_addr();
     if (bias_addr) {
         elf_file sfile;
         if (!sfile.load(module_name)) {
@@ -521,7 +541,7 @@ bool elf_hooker::find_function_addr(const char * module_name, const char * sym_n
             return false;
         }
         if (offset) {
-            func_addr = reinterpret_cast<uintptr_t>(bias_addr + offset);
+            func_addr = bias_addr + offset;
             return true;
         }
     }
@@ -529,15 +549,16 @@ bool elf_hooker::find_function_addr(const char * module_name, const char * sym_n
 }
 
 const char * elf_hooker::get_realpath_from_soinfo(struct soinfo * soinfo) {
-    const char * soname = soinfo->old_name;
+    const char * soname = "";
+#if defined(__work_around_b_24465209__)
     if (soinfo) {
         const char * realpath = NULL;
-        uint32_t * p = reinterpret_cast<uint32_t *>((uintptr_t)soinfo + 0x17c);
-        uint8_t b = *reinterpret_cast<uint8_t*>((uintptr_t)soinfo + 0x17c);
+        uint32_t * p = reinterpret_cast<uint32_t *>((uintptr_t)soinfo + 0x17C);
+        uint8_t b = *reinterpret_cast<uint8_t*>((uintptr_t)soinfo + 0x17C);
         if (b & 0x01) {
             realpath = *reinterpret_cast<const char **>((uintptr_t)soinfo + 0x184);
         } else {
-            realpath = reinterpret_cast<const char *>((uintptr_t)soinfo + 0x17d);
+            realpath = reinterpret_cast<const char *>((uintptr_t)soinfo + 0x17D);
         }
         if (realpath) {
             soname = realpath;
@@ -546,6 +567,21 @@ const char * elf_hooker::get_realpath_from_soinfo(struct soinfo * soinfo) {
             soname = (const char *)soinfo->old_name;
         }
     }
+#else
+    if (soinfo) {
+        const char * realpath = NULL;
+        uint32_t * p = reinterpret_cast<uint32_t *>((uintptr_t)soinfo + 0x1A0);
+        uint8_t b = *reinterpret_cast<uint8_t*>((uintptr_t)soinfo + 0x1A0);
+        if (b & 0x01) {
+            realpath = *reinterpret_cast<const char **>((uintptr_t)soinfo + 0x1B0);
+        } else {
+            realpath = reinterpret_cast<const char *>((uintptr_t)soinfo + 0x1A1);
+        }
+        if (realpath) {
+            soname = realpath;
+        }
+    }
+#endif
     return soname;
 }
 

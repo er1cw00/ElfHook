@@ -12,34 +12,32 @@
 
 #include "elf_common.h"
 #include "elf_module.h"
-
 #include "elf_log.h"
 
 elf_module::elf_module(ElfW(Addr) base_addr, const char* module_name)
 {
-    this->m_base_addr   = base_addr;
-    this->m_module_name = module_name == NULL ? "" : module_name;
-    this->m_bias_addr   = 0;
-    this->m_is_loaded   = false;
+    this->m_base_addr      = base_addr;
+    this->m_module_name    = module_name == NULL ? "" : module_name;
+    this->m_bias_addr      = 0;
+    this->m_is_loaded      = false;
 
-    this->m_ehdr          = NULL;
-    this->m_phdr          = NULL;
-    this->m_shdr          = NULL;
+    this->m_ehdr           = NULL;
+    this->m_phdr           = NULL;
+    this->m_shdr           = NULL;
 
-    this->m_dyn_ptr       = NULL;
-    this->m_dyn_size      = 0;
+    this->m_dyn_ptr        = NULL;
+    this->m_dyn_size       = 0;
 
-    this->m_sym_ptr       = NULL;
-    this->m_sym_size      = 0;
+    this->m_sym_ptr        = NULL;
+    this->m_sym_size       = 0;
 
     this->m_relplt_addr    = 0;
-    this->m_relplt_bytes  = 0;
+    this->m_relplt_bytes   = 0;
     this->m_reldyn_addr    = 0;
-    this->m_reldyn_bytes  = 0;
+    this->m_reldyn_bytes   = 0;
 
-
-    this->m_symstr_ptr    = NULL;
-    this->m_shstr_ptr     = NULL;
+    this->m_symstr_ptr     = NULL;
+    this->m_shstr_ptr      = NULL;
 
     this->set_is_gnu_has(false);
     this->set_is_use_rela(false);
@@ -150,20 +148,19 @@ bool elf_module::get_segment_view(void) {
             this->m_reldyn_bytes = dyn->d_un.d_val;
             break;
         case DT_JMPREL:
-            this->m_relplt_addr = reinterpret_cast<ElfW(Addr)>(this->get_bias_addr() + dyn->d_un.d_ptr);
+            this->m_relplt_addr = this->get_bias_addr() + dyn->d_un.d_ptr;
             break;
         case DT_PLTRELSZ:
             this->m_relplt_bytes = dyn->d_un.d_val;
             break;
-        case DT_HASH:
-            {
+        case DT_HASH: {
                 uint32_t *rawdata = reinterpret_cast<uint32_t *>(this->get_bias_addr() + dyn->d_un.d_ptr);
                 this->m_nbucket = rawdata[0];
                 this->m_nchain  = rawdata[1];
                 this->m_bucket  = rawdata + 2;
                 this->m_chain   = this->m_bucket + this->m_nbucket;
                 this->m_sym_size   = this->m_nchain;
-                log_dbg("nbucket: %d, nchain: %d, bucket: %p, chain:%p\n", this->m_nbucket, this->m_nchain, this->m_bucket, this->m_chain);
+            //    log_dbg("nbucket: %d, nchain: %d, bucket: %p, chain:%p\n", this->m_nbucket, this->m_nchain, this->m_bucket, this->m_chain);
                 break;
             }
         case DT_GNU_HASH: {
@@ -307,18 +304,8 @@ bool elf_module::gnu_lookup(char const* symbol, ElfW(Sym) **sym, int *symidx) {
     *sym = NULL;
     *symidx = 0;
 
-    log_info("[+] Search %s in %s@%p (gnu)\n",
-                symbol,
-                this->get_module_name(),
-                reinterpret_cast<void*>(this->get_base_addr()));
-
     // test against bloom filter
     if ((1 & (bloom_word >> (hash % bloom_mask_bits)) & (bloom_word >> (h2 % bloom_mask_bits))) == 0) {
-        // log_dbg("[-] NOT Found %s in %s@%p 1\n",
-        //             symbol,
-        //             this->get_module_name(),
-        //             reinterpret_cast<void*>(this->get_base_addr()));
-
         return false;
     }
 
@@ -326,45 +313,29 @@ bool elf_module::gnu_lookup(char const* symbol, ElfW(Sym) **sym, int *symidx) {
     uint32_t n = this->m_gnu_bucket[hash % this->m_gnu_nbucket];
 
     if (n == 0) {
-        // log_dbg("[-] NOT Found %s in %s@%p 2\n",
-        //     symbol,
-        //     this->get_module_name(),
-        //     reinterpret_cast<void*>(this->get_base_addr()));
-
         return false;
     }
-
     do {
         ElfW(Sym)* s = this->m_sym_ptr + n;
         if (((this->m_gnu_chain[n] ^ hash) >> 1) == 0 &&
                     strcmp((this->m_symstr_ptr + s->st_name), symbol) == 0) {
-            log_info("[+] Found %s in %s (%p) %zd\n",
-                            symbol,
-                            this->get_module_name(),
-                            reinterpret_cast<void*>(s->st_value),
-                            static_cast<size_t>(s->st_size));
             *symidx = n;
             *sym = s;
             return true;
         }
     } while ((this->m_gnu_chain[n++] & 1) == 0);
-
-    // log_warn("[-] NOT Found %s in %s@%p 3\n",
-    //           symbol,
-    //           this->get_module_name(),
-    //           reinterpret_cast<void*>(this->get_base_addr()));
-
     return false;
 }
 
 bool elf_module::find_symbol_by_name(const char *symbol, ElfW(Sym) **sym, int *symidx) {
+    bool result = false;
     if (!this->m_symstr_ptr || !this->m_sym_ptr) {
         log_warn("NOT symstr or symtab..\n");
         return false;
     }
 
     if (this->get_is_gnu_hash()) {
-        bool result = gnu_lookup(symbol, sym, symidx);
+        result = gnu_lookup(symbol, sym, symidx);
         if (!result) {
             for(int i = 0; i < (int)this->m_gnu_symndx; i++) {
                 char const* symName = reinterpret_cast<char const *>(this->m_sym_ptr[i].st_name + this->m_symstr_ptr);
@@ -373,23 +344,36 @@ bool elf_module::find_symbol_by_name(const char *symbol, ElfW(Sym) **sym, int *s
                     *symidx = i;
                     *sym = this->m_sym_ptr + i;
                     result = true;
-                    log_info("[+] Found %s in %s (%p) %zd\n",
-                                    symbol,
-                                    this->get_module_name(),
-                                    reinterpret_cast<void*>((*sym)->st_value),
-                                    static_cast<size_t>((*sym)->st_size));
+                     log_dbg("[+] Found %s in %s (%p) %zd@gnu_hash\n",
+                                     symbol,
+                                     this->get_module_name(),
+                                     reinterpret_cast<void*>((*sym)->st_value),
+                                     static_cast<size_t>((*sym)->st_size));
                 }
             }
         }
         if (!result) {
-            log_dbg("[-] NOT Found %s in %s@%p\n",
-                symbol,
-                this->get_module_name(),
-                reinterpret_cast<void*>(this->get_base_addr()));
+            // log_dbg("[-] NOT Found %s in %s@%p\n",
+            //     symbol,
+            //     this->get_module_name(),
+            //    reinterpret_cast<void*>(this->get_base_addr()));
         }
         return result;
     }
-    return elf_lookup(symbol, sym, symidx);
+    result = elf_lookup(symbol, sym, symidx);
+    if (false && result) {
+        log_dbg("[+] Found %s in %s (%p) %zd@elf_hash\n",
+                        symbol,
+                        this->get_module_name(),
+                        reinterpret_cast<void*>((*sym)->st_value),
+                        static_cast<size_t>((*sym)->st_size));
+    } else {
+        log_dbg("[-] NOT Found %s in %s@%p\n",
+            symbol,
+            this->get_module_name(),
+            reinterpret_cast<void*>(this->get_base_addr()));
+    }
+    return result;
 }
 
 bool elf_module::hook(const char *symbol, void *replace_func, void **old_func) {
@@ -401,7 +385,7 @@ bool elf_module::hook(const char *symbol, void *replace_func, void **old_func) {
     assert(symbol);
 
     if (!this->m_is_loaded) {
-        this->m_is_loaded = this->load();
+        this->m_is_loaded = this->get_segment_view();
         if (!this->m_is_loaded) {
             return false;
         }
@@ -492,11 +476,12 @@ int elf_module::get_mem_access(ElfW(Addr) addr, uint32_t* pprot) {
     return result;
 }
 
-int elf_module::clear_cache(void* addr, size_t len)
-{
+int elf_module::clear_cache(void* addr, size_t len) {
     void *end = (uint8_t *)addr + len;
-    return syscall(0xf0002, addr, end);
+    //__builtin___clear_cache((char *)addr, (char*)end);
+    return syscall(__ARM_NR_cacheflush, addr, end)
 }
+// Fatal signal 31 (SIGSYS), code 1 (SYS_SECCOMP) in tid 14930 (.tdx.AndroidNew), pid 14930 (.tdx.AndroidNew)
 
 bool elf_module::replace_function(void* addr, void *replace_func, void **old_func) {
     bool res = false;
@@ -530,7 +515,7 @@ bool elf_module::replace_function(void* addr, void *replace_func, void **old_fun
 
     *(void **)addr = replace_func;
     clear_cache(addr, getpagesize());
-    log_info("[+] old_func is %p, replace_func is %p, new_func %p.\n", *old_func, replace_func, reinterpret_cast<void*>(*(void**)addr));
+    log_dbg("[+] old_func is %p, replace_func is %p, new_func %p.\n", *old_func, replace_func, reinterpret_cast<void*>(*(void**)addr));
 
 fail:
     return res;
@@ -739,3 +724,4 @@ void elf_module::dump_rela_info(void) {
     }
     return;
 }
+

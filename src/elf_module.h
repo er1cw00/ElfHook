@@ -28,7 +28,7 @@ public:
     inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 
     bool hook(const char *symbol, void *replace_func, void **old_func);
-    bool load(void);
+    bool get_segment_view(void);
 
     void dump_elf_header(void);
     void dump_sections();

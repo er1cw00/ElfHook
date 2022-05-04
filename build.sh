@@ -15,14 +15,17 @@ function build() {
   elif [ $1 == "x86_64" ]; then
     ARCH="x86_64"
   fi
+  OUTPUT_DIR="${BUILD_DIR}/output"
   BUILD_DIR="${BUILD_DIR}/${ARCH}"
   mkdir -p "${BUILD_DIR}"
+  mkdir -p "${OUTPUT_DIR}"
   pushd ${BUILD_DIR}
   cmake -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} \
         -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
         -DANDROID_PLATFORM=${API_VERSION} \
         -DCMAKE_SYSTEM_NAME=Android \
         -DCMAKE_ANDROID_ARCH_ABI=${ARCH} \
+        -DCMAKE_INSTALL_PREFIX=${OUTPUT_DIR} \
         ../..
   make VERBOSE=1
   popd

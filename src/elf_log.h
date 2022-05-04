@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <android/log.h>
 
-#define LOG_TO_CONSOLE (1)
+#define LOG_TO_CONSOLE (0)
 
 #if (LOG_TO_CONSOLE)
 

@@ -2,20 +2,28 @@
 #define __ELFKIT_SOINFO_H__
 
 #define SOINFO_NAME_LEN (128)
-    
-struct soinfo {
 
+struct soinfo {
+#if defined(__work_around_b_24465209__)
     char                    old_name[SOINFO_NAME_LEN];
+#endif
     const ElfW(Phdr)        *phdr;
     size_t                  phnum;
+#if defined(__work_around_b_24465209__)
     ElfW(Addr)              unused0;
+#endif
     ElfW(Addr)              base;
     size_t                  size;
+#if defined(__work_around_b_24465209__)
     uint32_t                unused1;   // DO NOT USE, maintained for compatibility.
+#endif
     ElfW(Dyn)               *dynamic;
+
+#if defined(__work_around_b_24465209__)
     uint32_t                unused2;   // DO NOT USE, maintained for compatibility
     uint32_t                unused3;   // DO NOT USE, maintained for compatibility
-    struct soinfo_header    *next;
+#endif
+    struct soinfo           *next;
     uint32_t                flags;
     const char              *strtab;
     ElfW(Sym)               *symtab;
