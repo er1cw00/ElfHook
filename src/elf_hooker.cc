@@ -121,7 +121,7 @@ bool elf_hooker::check_flags_and_devno(char* flags, char* dev) {
     return true;
 }
 
-size_t elf_hooker::phrase_proc_maps(const char * so_name, std::map<std::string, elf_module> & modules, bool lock) {
+int elf_hooker::phrase_proc_maps(const char* so_name, std::map<std::string, elf_module> & modules, bool lock) {
     modules.clear();
     FILE* fd = fopen("/proc/self/maps", "r");
     if (fd != NULL) {

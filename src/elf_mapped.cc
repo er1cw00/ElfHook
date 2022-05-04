@@ -10,8 +10,10 @@
 #include "elf_mapped.h"
 #include "elf_log.h"
 
-elf_mapped::elf_mapped() : m_map_start(NULL), m_map_size(0),
-                                         m_data(NULL), m_size (0) {
+elf_mapped::elf_mapped() : m_map_start(NULL),
+                            m_map_size(0),
+                            m_data(NULL),
+                            m_size (0) {
 }
 
 elf_mapped::~elf_mapped() {

@@ -89,7 +89,7 @@ bool elf_file::read_program_headers() {
     }
 
     if (this->m_phdr_num < 1 || this->m_phdr_num > 65536/sizeof(ElfW(Phdr))) {
-        log_error("\"%s\" has invalid e_phnum: %zd", this->get_soname(), this->m_phdr_num);
+        log_error("\"%s\" has invalid e_phnum: %u", this->get_soname(), this->m_phdr_num);
         return false;
     }
 
