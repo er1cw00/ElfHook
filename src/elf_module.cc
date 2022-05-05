@@ -476,10 +476,28 @@ int elf_module::get_mem_access(ElfW(Addr) addr, uint32_t* pprot) {
     return result;
 }
 
-int elf_module::clear_cache(void* addr, size_t len) {
-    void *end = (uint8_t *)addr + len;
-    //__builtin___clear_cache((char *)addr, (char*)end);
-    return syscall(__ARM_NR_cacheflush, addr, end)
+void elf_module::clear_cache(void* addr, size_t len) {
+    uint8_t *p = (uint8_t*)addr;
+    uint8_t *q = p + len;
+#if __arm__
+    __builtin___clear_cache((char *)p, (char*)q);
+#elif __aarch64__
+    # define ASM __asm__ __volatile__
+    long icachez, dcachez, ctr_el0;
+    ASM( "mrs	%0, ctr_el0\n" : "=r"(ctr_el0) ::); // read CTR_EL0
+    dcachez = 4l << ((ctr_el0 >> 16) & 0xF);	    // extract data cache line size
+    icachez = 4l << (ctr_el0 & 0xF);		        // extract icache line size
+    do {
+        ASM("dc      cvau, %0\n" :: "r"(p) :);      // spill dcache line
+    } while((p += dcachez) < q);
+    ASM("dsb     ish\n" :::);	                    // barrier, let dcache operations retire
+    p = (uint8_t*)addr;
+    do {
+        ASM("ic      ivau, %0\n" :: "r"(p) :);      // invalidate icache line
+    } while((p += icachez) < q);
+    ASM("dsb     ish\n" :::);	                    // barrier, let icache operations retire
+    ASM("isb\n" :::);                               // instruction barrier
+#endif
 }
 // Fatal signal 31 (SIGSYS), code 1 (SYS_SECCOMP) in tid 14930 (.tdx.AndroidNew), pid 14930 (.tdx.AndroidNew)
 

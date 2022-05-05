@@ -58,7 +58,7 @@ protected:
     template<class T>
     void get_section_info(const char *name, ElfW(Shdr) **ppShdr, ElfW(Word) *pSize, T *data);
 
-    int  clear_cache(void *addr, size_t len);
+    void  clear_cache(void *addr, size_t len);
     int  get_mem_access(ElfW(Addr) addr, uint32_t* pprot);
     int  set_mem_access(ElfW(Addr)
     addr, int prots);
