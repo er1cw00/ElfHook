@@ -126,7 +126,7 @@ bool elf_module::get_segment_view(void) {
     ElfW(Dyn) *dyn = this->m_dyn_ptr;
     this->set_is_gnu_hash(false);
     this->m_dyn_size = size / sizeof(Elf32_Dyn);
-    for(int i = 0; i < (int)this->m_dyn_size; i += 1, dyn += 1) {
+    for(int i = 0; i < (int)this->m_dyn_size && dyn->d_tag != DT_NULL; i += 1, dyn += 1) {
         switch(dyn->d_tag) {
         case DT_SYMTAB:
             this->m_sym_ptr = reinterpret_cast<ElfW(Sym) *>(this->get_bias_addr() + dyn->d_un.d_ptr);
