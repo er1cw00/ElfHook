@@ -105,7 +105,9 @@ bool elf_module::get_segment_view(void) {
     if (!this->m_bias_addr) {
         this->m_bias_addr = this->caculate_bias_addr(this->m_ehdr);
     }
-
+    if (this->m_bias_addr == NULL) {
+        log_error("[-] bias_addr is null");
+    }
     if (this->m_ehdr->e_type == ET_EXEC || this->m_ehdr->e_type == ET_DYN) {
         //log_info("[+] Executable File or Shared Object, ElfHook Process..\n");
     } else {
