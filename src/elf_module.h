@@ -23,7 +23,7 @@ public:
     inline ElfW(Addr) get_base_addr() { return this->m_base_addr; }
     inline ElfW(Addr) get_bias_addr() { return this->m_bias_addr; }
     inline bool get_is_gnu_hash() { return this->m_is_gnu_hash; }
-    inline void set_is_gnu_has(bool flag) { this->m_is_gnu_hash = flag; }
+    inline void set_is_gnu_hash(bool flag) { this->m_is_gnu_hash = flag; }
     inline bool get_is_use_rela() { return this->m_is_use_rela; }
     inline void set_is_use_rela(bool flag) { this->m_is_use_rela = flag; }
 

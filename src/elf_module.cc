@@ -39,7 +39,7 @@ elf_module::elf_module(ElfW(Addr) base_addr, const char* module_name)
     this->m_symstr_ptr     = NULL;
     this->m_shstr_ptr      = NULL;
 
-    this->set_is_gnu_has(false);
+    this->set_is_gnu_hash(false);
     this->set_is_use_rela(false);
 
     return;
@@ -124,7 +124,7 @@ bool elf_module::get_segment_view(void) {
     }
 
     ElfW(Dyn) *dyn = this->m_dyn_ptr;
-    this->set_is_gnu_has(false);
+    this->set_is_gnu_hash(false);
     this->m_dyn_size = size / sizeof(Elf32_Dyn);
     for(int i = 0; i < (int)this->m_dyn_size; i += 1, dyn += 1) {
         switch(dyn->d_tag) {
@@ -180,7 +180,7 @@ bool elf_module::get_segment_view(void) {
                     return false;
                 }
                 this->m_gnu_maskwords -= 1;
-                this->set_is_gnu_has(true);
+                this->set_is_gnu_hash(true);
 
                 log_dbg("bbucket(%d), symndx(%d), maskworks(%d), shift2(%d)\n",
                         this->m_gnu_nbucket,   this->m_gnu_symndx,
