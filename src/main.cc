@@ -50,29 +50,29 @@ static bool __prehook(const char* module_name) {
 
 static struct sigaction __origin_sa[NSIG];
 
-static void __segv_signal_handler(int sig, siginfo_t * info, void * content) {
+static void __signal_handler(int sig, siginfo_t * info, void * content) {
     if (sig == SIGSEGV) {
         log_error(">>>>>> SIGSEGV <<<<<<");
-        return
+        return;
     } else if (sig == SIGSYS) {
         log_error(">>>>>> SIGSYS <<<<<<");
-        return
+        return;
     }
 }
 
-void __segv_signal_setup() {
+void __signal_setup() {
     struct sigaction sa;
     memset(&__origin_sa, 0, sizeof(struct sigaction) * NSIG);
     memset(&sa, 0, sizeof(struct sigaction));
 
-    sa.sa_handler = __segv_signal_handler;
-    sa.sa_flags = SA_RESETHAND;
+    sa.sa_sigaction = __signal_handler;
+    sa.sa_flags = SA_NODEFER;
     sigaction(SIGSEGV, &sa, &__origin_sa[SIGSEGV]);
     sigaction(SIGSYS, &sa, &__origin_sa[SIGSYS]);
     return;
 }
 
-void __segv_signal_dispose() {
+void __signal_dispose() {
     sigaction(SIGSEGV, &__origin_sa[SIGSEGV], NULL);
     sigaction(SIGSYS, &__origin_sa[SIGSYS], NULL);
     return;
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     char ch = 0;
     elf_hooker hooker;
 
-//    __segv_signal_setup();
+//    __signal_setup();
 
     void* h = dlopen("libart.so", RTLD_LAZY);
     void* f = dlsym(h,"artAllocObjectFromCodeResolvedRegion");
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
         ch = getc(stdin);
     } while(ch != 'q');
 
-//    __segv_signal_dispose();
+//    __signal_dispose();
 
     return 0;
 }
